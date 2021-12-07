@@ -6,107 +6,44 @@
 
 #include <frontend/tree.h>
 
-/*
-node *compare_trees(node *t1, node *t2)
-{
-        assert(t1);
-        assert(t2);
-
-        if (t1->type != t2->type)
-                return t1;
-
-        switch (t1->type) {
-        case NODE_NUM:
-                if (*node_num(t1) != *node_num(t2))
-                        return t1;
-                break;
-        case NODE_VAR:
-                if (*node_var(t1) != *node_var(t2))
-                        return t1;
-                break;
-        case NODE_OP:
-                if (*node_op(t1) != *node_op(t2))
-                        return t1;
-                break;
-        dafault:
-                assert(0);
-                return nullptr;
-        }
-
-        if (((!t1->left  && t2->left)  || (t1->left && !t2->left)) ||
-            ((!t1->right && t2->right) || (t1->right && !t2->right)))
-               return t1; 
-
-        node *t = nullptr;
-
-        if (t1->left)
-                t = compare_trees(t1->left, t2->left);
-        if (t)
-                return t;
-
-        if (t1->right)
-                t = compare_trees(t1->right, t2->right);
-        if (t)
-                return t;
-
-        return nullptr;
-}
-*/
-size_t calc_tree_size(node *n) 
+double node_number(node *n)
 {
         assert(n);
+        assert(n->type == AST_NODE_NUMBER);
 
-        if (n->left && n->right)
-                return calc_tree_size(n->left) + 
-                       calc_tree_size(n->right);
-        if (n->right)
-                return calc_tree_size(n->right);
-        if (n->left)
-                return calc_tree_size(n->left);
-
-        return 1;
-}
-
-double *node_num(node *n)
-{
-        assert(n);
-        assert(n->type == NUMBER);
-
-        if (n->type == NUMBER)
-                return &n->data.number;
+        if (n->type == AST_NODE_NUMBER)
+                return n->data.number;
 
         return 0;
 }
 
-const char *node_var(node *n)
+const char *node_ident(node *n)
 {
         assert(n);
-        assert(n->type == VARIABLE);
+        assert(n->type == AST_NODE_IDENT);
 
-        if (n->type == VARIABLE)
-                return n->data.variable;
+        if (n->type == AST_NODE_IDENT)
+                return n->data.ident;
 
         return nullptr;
 }
 
-/*
-unsigned *node_op(node *n)
+int node_keyword(node *n)
 {
         assert(n);
-        assert(n->type == NODE_OP);
+        assert(n->type == AST_NODE_KEYWORD);
 
-        if (n->type == NODE_OP)
-                return &n->data.op;
+        if (n->type == AST_NODE_KEYWORD)
+                return n->data.keyword;
 
         return 0;
 }
-*/
 
 node *copy_tree(node *n)
 {
         assert(n);
 
-        node *newbie = create_node();
+        node *newbie = create_node(n->type);
         if (!newbie)
                 return nullptr;
 
@@ -145,13 +82,23 @@ void free_tree(node *root)
         free(root);
 }
 
-node *create_node()
+node *create_node(int type)
 {
+        assert(type == AST_NODE_IDENT   ||
+               type == AST_NODE_NUMBER  ||
+               type == AST_NODE_KEYWORD );
+
 $       (node *newbie = (node *)calloc(1, sizeof(node));)
         if (!newbie) {
                 fprintf(logs, "Can't create node\n");
-                return newbie;
+                return nullptr;
         }
+
+        newbie->type       = type;
+        newbie->hash       = 0x00000;
+        newbie->left       = nullptr;
+        newbie->right      = nullptr;
+        newbie->data.ident = nullptr;
 
         return newbie;
 }

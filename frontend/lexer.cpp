@@ -6,24 +6,65 @@
 #include <stdlib.h>
 #include <logs.h>
 #include <stack.h>
+#include <frontend/token.h>
 #include <frontend/tree.h>
 #include <frontend/grammar.h>
 #include <frontend/lexer.h>
 
+struct array {
+        size_t capacity = 0;
+        size_t size     = 0;
 
-static node *create_token(stack *const stk, int type) 
+        token *data = nullptr;
+};
+
+static const size_t INIT_CAPACITY = 2;
+
+static token *realloc_array(array *const toks, size_t capacity) 
 {
-        assert(stk);
+        if (capacity == 0)
+                capacity = INIT_CAPACITY;
 
-        node *newbie = (node *)calloc(1, sizeof(node));
+        token *data = (token *)realloc(toks->data, capacity * sizeof(token));
+        if (!data) {
+                perror("Can't realloc token array");
+                return nullptr;
+        }
 
-        newbie->data.variable = nullptr;
-        newbie->type          = type;
-        newbie->left          = nullptr;
-        newbie->right         = nullptr;
+        toks->capacity = capacity;
+        toks->data     = data;
 
-        push_stack(stk, newbie); 
+        return data;
+}
+
+static token *create_token(array *const toks, int type) 
+{
+        assert(toks);
+
+        if (toks->size >= toks->capacity) {
+                token *data = realloc_array(toks, toks->capacity * 2);
+                if (!data)
+                        return nullptr;
+        }
+
+        token *newbie = &toks->data[toks->size++];
+
+        newbie->type       = type;
+        newbie->data.ident = nullptr;
+
         return newbie;
+}
+
+static token *extract_tokens(array *const toks) 
+{
+        assert(toks);
+
+        token *data = realloc_array(toks, toks->size);
+        if (!data)
+                return nullptr;
+
+        toks->data = nullptr;
+        return data;
 }
 
 static char *unique(stack *const stk, const char *str, const size_t len)
@@ -43,7 +84,6 @@ static char *unique(stack *const stk, const char *str, const size_t len)
                 return nullptr;
         }
 
-
         strncpy(newbie, str, len);
         newbie[len] = '\0';
 
@@ -52,21 +92,25 @@ static char *unique(stack *const stk, const char *str, const size_t len)
         return newbie;
 }
 
-node *get_ident(stack *const stk, const char **str, stack *const vars);
-node *get_number  (stack *const stk, const char **str);
-node *get_operator(stack *const stk, const char **str);
+token *get_ident   (array *const toks, const char **str, stack *const vars);
+token *get_number  (array *const toks, const char **str);
+token *get_operator(array *const toks, const char **str);
 
 int tokenize(const char *str)
 {
+#define T(id)                                    \
+        tok = create_token(&arr, TOKEN_KEYWORD); \
+        tok->data.keyword = id;
+
         assert(str);
-        stack stk = {0};
-        construct_stack(&stk);
 
         stack vars = {0};
         construct_stack(&vars);
+        array arr = {0};
+        arr.capacity = 0;
+        arr.size     = 0;
 
-        node *tok = nullptr;
-
+        token *tok = nullptr;
         while (*str != '\0') {
                 switch (*str) {
                 case ' ':
@@ -75,61 +119,79 @@ int tokenize(const char *str)
                         break;
                 case '=':
                         if (*(str+1) == '=') {
-                                create_token(&stk, EQ_OP);
+                                T(KW_EQUAL);
                                 str++;
                         } else {
-                                create_token(&stk, '=');
+                                T(KW_ASSIGN);
                         }
                         break;
                 case '>':
                         if (*(str+1) == '=') {
-                                create_token(&stk, GE_OP);
+                                T(KW_GEQUAL);
                                 str++;
                         } else {
-                                create_token(&stk, '>');
+                                T(KW_GREAT);
                         }
                         break;
                 case '<':
                         if (*(str+1) == '=') {
-                                create_token(&stk, LE_OP);
+                                T(KW_LEQUAL);
                                 str++;
                         } else {
-                                create_token(&stk, '<');
+                                T(KW_LOW);
                         }
                         break;
                 case '!':
                         if (*(str+1) != '=')
                                 goto syntax_error;
 
-                        create_token(&stk, NEQ_OP);
+                        T(KW_NEQUAL);
                         str++;
                         break;
                 case '|':
-                        create_token(&stk, OR_OP);
+                        T(KW_OR);
                         break;
                 case '&':
-                        create_token(&stk, AND_OP);
+                        T(KW_AND);
                         break;
                 case '(':
+                        T(KW_OPAR);
+                        break;
                 case ')':
+                        T(KW_CPAR);
+                        break;
                 case '+':
+                        T(KW_ADD);
+                        break;
                 case '-':
+                        T(KW_SUB);
+                        break;
                 case '*':
+                        T(KW_MUL);
+                        break;
                 case '/':
+                        T(KW_DIV);
+                        break;
                 case '{':
+                        T(KW_BEGIN);
+                        break;
                 case '}':
+                        T(KW_END);
+                        break;
                 case ';':
+                        T(KW_STEND);
+                        break;
                 case '^':
-                        create_token(&stk, *str);
+                        T(KW_POW);
                         break;
                 case '0'...'9':
-                        get_number(&stk, &str);
+                        get_number(&arr, &str);
                         str--;
                         break;
                 case 'a'...'z':
                 case 'A'...'Z':
                 case '_':
-                        get_ident(&stk, &str, &vars);
+                        get_ident(&arr, &str, &vars);
                         str--;
                         break;
                 default:
@@ -139,17 +201,30 @@ int tokenize(const char *str)
                 str++;
         }
 
+        T(KW_STOP);
+        
+#undef T 
+
 syntax_error:
         printf("ERROR:%s\n", str);
 
+        token *tokens = extract_tokens(&arr);
+        token *iter   = tokens;
+        do {
+                if (iter->type == TOKEN_KEYWORD)
+                        printf("keyword: %s\n", keyword_ident(iter->data.keyword));
+                else if (iter->type == TOKEN_NUMBER)
+                        printf("number: %lg\n", iter->data.number);
+                else if (iter->type == TOKEN_IDENT)
+                        printf("ident: %s\n", iter->data.ident);
+                else 
+                        printf("error\n ");
 
-        for (ptrdiff_t i = 0; i < stk.size - 1; i++) {
-                ((node *)data_stack(&stk)[i])->left = (node *)data_stack(&stk)[i + 1];
-        }
+                iter++;
+        } while (iter->data.keyword != KW_STOP);
 
-        dump_tree((node *)*data_stack(&stk));
-        free_tree((node *)*data_stack(&stk));
-        destruct_stack(&stk);
+
+        free(tokens);
 
         dump_stack(&vars);
         while (vars.size > 0) {
@@ -160,17 +235,20 @@ syntax_error:
         return 0;
 }
 
-node *get_ident(stack *const stk, const char **str, stack *const vars)
+token *get_ident(array *const toks, const char **str, stack *const vars)
 {
         assert(str);
-        assert(stk);
+        assert(toks);
 
-        const char *token = *str;
+        const char *start = *str;
 
-#define cmp(tok)  !strncmp(token, tok, *str - token)
-#define proc(id) \
-        printf ("READ IDENT:%c, %d\n", id, id); \
-        return create_token(stk, id);
+
+#define cmp(tok)  !strncmp(start, keyword_ident(tok), *str - start)
+
+#define proc(id)                                      \
+        token* t = create_token(toks, TOKEN_KEYWORD); \
+        t->data.keyword = id;                         \
+        return t;
 
         while (**str != '\0') {
                 switch (**str) {
@@ -181,15 +259,16 @@ node *get_ident(stack *const stk, const char **str, stack *const vars)
                         (*str)++;
                         break;
                 default:
-                             if (cmp("if"))    { proc(IF);    }
-                        else if (cmp("else"))  { proc(ELSE);  }
-                        else if (cmp("while")) { proc(WHILE); }
-                        else if (cmp("const")) { proc(CONST); }
+                             if (cmp(KW_IF))     { proc(KW_IF);     }
+                        else if (cmp(KW_ELSE))   { proc(KW_ELSE);   }
+                        else if (cmp(KW_WHILE))  { proc(KW_WHILE);  }
+                        else if (cmp(KW_CONST))  { proc(KW_CONST);  }
+                        else if (cmp(KW_DEFINE)) { proc(KW_DEFINE); }
+                        else if (cmp(KW_RETURN)) { proc(KW_RETURN); }
                         else { 
-                                node *tok = create_token(stk, VARIABLE);
-                                tok->data.variable = unique(vars, token, *str - token);
-                                //tok->data.variable = "x";
-                                return tok;
+                                token *newbie = create_token(toks, TOKEN_IDENT);
+                                newbie->data.ident = unique(vars, start, *str - start);
+                                return newbie;
                         }
                 }
         }
@@ -198,16 +277,16 @@ node *get_ident(stack *const stk, const char **str, stack *const vars)
 #undef proc 
 }
 
-node *get_number(stack *const stk, const char **str)
+token *get_number(array *const toks, const char **str)
 {
         assert(str && *str);
-        assert(stk);
+        assert(toks);
 
         double num = 0;
         int n      = 0;
 
         sscanf(*str, "%lf%n", &num, &n);
-        node *newbie = create_token(stk, NUMBER);
+        token *newbie = create_token(toks, TOKEN_NUMBER);
         newbie->data.number = num;
 
         *str += n;
@@ -217,7 +296,8 @@ node *get_number(stack *const stk, const char **str)
 
 int main()
 {
-        const char *str = "if(x11 >===0||y!=2){const hel111lo3=-2.21e12; y = x * 32 ^ result; if (zero < 2 & keyval != 2.2212*321) -0.321e-1 - 1.22 Gar1k; while (result <= 5.0) 32;}";
+        const char *str = "if(x11 ewew111>===0 | y!=2){const hel111lo3=-2.21e12; y = x * 32 ^ result; if (zero < 2 & keyval != 2.2212*321) -0.321e-1 - 1.22 Gar1k; while (result <= 5.0) 32;}";
+        printf("\n%s\n", str);
         tokenize(str);
         return 0;
 }

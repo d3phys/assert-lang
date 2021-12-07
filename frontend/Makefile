@@ -4,7 +4,7 @@
 # 2021, d3phys
 #
 
-OBJS = lexer.o dump_tree.o toktostr.o tree.o
+OBJS = lexer.o dump_tree.o ident.o tree.o recursive_descent.o
 
 frontend.o: $(OBJS) subdirs
 	$(LD) -r -o $@ $(OBJS)
@@ -15,12 +15,16 @@ include $(TOPDIR)/Rules.makefile
 dump_tree.o: dump_tree.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
  /home/d3phys/Code/language/include/frontend/grammar.h
+ident.o: ident.cpp /home/d3phys/Code/language/include/frontend/grammar.h
 lexer.o: lexer.cpp /home/d3phys/Code/language/include/logs.h \
+ /home/d3phys/Code/language/include/stack.h \
+ /home/d3phys/Code/language/include/frontend/token.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
  /home/d3phys/Code/language/include/frontend/grammar.h \
  /home/d3phys/Code/language/include/frontend/lexer.h
-toktostr.o: toktostr.cpp \
- /home/d3phys/Code/language/include/frontend/grammar.h
-tree.o: tree.cpp /home/d3phys/Code/language/include/logs.h \
+recursive_descent.o: recursive_descent.cpp \
+ /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
- /home/d3phys/Code/language/include/frontend/grammar.h
+ /home/d3phys/Code/language/include/frontend/lexer.h
+tree.o: tree.cpp /home/d3phys/Code/language/include/logs.h \
+ /home/d3phys/Code/language/include/frontend/tree.h

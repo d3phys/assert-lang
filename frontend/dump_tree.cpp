@@ -4,6 +4,7 @@
 #include <logs.h>
 
 #include <frontend/tree.h>
+#include <frontend/grammar.h>
 
 /*
  * Default Graphviz settings for nodes, edges and graphs.
@@ -52,44 +53,44 @@ struct gviz_options {
         const char *label     = nullptr;
 };
 
-const gviz_options NODE_LITERAL  = {
+const gviz_options GVNODE_LITERAL  = {
         .color = "darkslategrey",
         .shape = "ellipse",
         .fillcolor = "darkslategray3",
 };
 
-const gviz_options NODE_VARIABLE = {
+const gviz_options GVNODE_VARIABLE = {
         .color = "indigo",
         .shape = "rectangle",
         .fillcolor = "thistle",
 };
 
-const gviz_options NODE_OPERATOR = {
+const gviz_options GVNODE_OPERATOR = {
         .color = "grey",
         .shape = "rectangle",
         .fillcolor = "azure2",
 };
 
-const gviz_options NODE_DERIVATIVE = {
+const gviz_options GVNODE_DERIVATIVE = {
         .color = "grey",
         .shape = "box",
         .fillcolor = "ghostwhite",
 };
 
-const gviz_options EDGE_INVIS = {
+const gviz_options GVEDGE_INVIS = {
         .style = "dotted"
 };
 
-const gviz_options EDGE_DEFAULT = {
+const gviz_options GVEDGE_DEFAULT = {
         .style = "dashed"
 };
 
-const gviz_options EDGE_RIGHT = {
+const gviz_options GVEDGE_RIGHT = {
         .style = "dashed",
         .label = "R",
 };
 
-const gviz_options EDGE_LEFT = {
+const gviz_options GVEDGE_LEFT = {
         .style = "dashed",
         .label = "L",
 };
@@ -197,14 +198,17 @@ static void print_node(node *cur)
         n.cur = cur;
 
         switch (cur->type) {
-        case VARIABLE:
-                opt = &NODE_VARIABLE;
+        case AST_NODE_IDENT:
+                opt = &GVNODE_VARIABLE;
                 break;
-        case NUMBER:
-                opt = &NODE_LITERAL;
+        case AST_NODE_NUMBER:
+                opt = &GVNODE_LITERAL;
+                break;
+        case AST_NODE_KEYWORD:
+                opt = &GVNODE_OPERATOR;
                 break;
         default:
-                opt = &NODE_OPERATOR;
+                assert(0);
                 break;
         }
 
@@ -212,14 +216,14 @@ static void print_node(node *cur)
 
         gvprint_node(&n);
 
-        e.opt = &EDGE_DEFAULT;
+        e.opt = &GVEDGE_DEFAULT;
         e.from = cur;
 
-        e.opt = &EDGE_LEFT;
+        e.opt = &GVEDGE_LEFT;
         e.to   = cur->left;
         gvprint_edge(&e);
 
-        e.opt = &EDGE_RIGHT;
+        e.opt = &GVEDGE_RIGHT;
         e.to   = cur->right;
         gvprint_edge(&e);
 }
@@ -266,16 +270,18 @@ static inline void gvprint_content(const gviz_node *node)
         gvprint("[label=\"");
 
         switch (node->cur->type) {
-        case VARIABLE:
-                gvprint("%s\n%p", node->cur->data.variable, 
-                                  node->cur->data.variable);
+        case AST_NODE_IDENT:
+                gvprint("%s\n%p", node_ident(node->cur),
+                                  node_ident(node->cur));
                 break;
-        case NUMBER:
-                gvprint("%lg", *node_num(node->cur));
+        case AST_NODE_NUMBER:
+                gvprint("%lg", node_number(node->cur));
+                break;
+        case AST_NODE_KEYWORD:
+                gvprint_operator(node_keyword(node->cur));
                 break;
         default:
-                gvprint_operator(node->cur->type);
-                //assert(0);
+                assert(0);
                 break;
         }
 
@@ -284,7 +290,7 @@ static inline void gvprint_content(const gviz_node *node)
 
 static void gvprint_operator(const unsigned type)
 {
-        const char *op = toktostr(type);
+        const char *op = keyword_ident(type);
         if (op) {
                 gvprint("%s\n", op);
         }
