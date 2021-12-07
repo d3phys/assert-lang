@@ -295,7 +295,7 @@ static void gvprint_operator(const unsigned type)
                 gvprint("%s\n", op);
         }
 
-        gvprint("%d '%c'", type, type);
+        gvprint("%d '%c'", (int)type, (char)type);
 }
 
 static void gvprint_edge(gviz_edge *edge)
