@@ -17,14 +17,17 @@ dump_tree.o: dump_tree.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/grammar.h
 ident.o: ident.cpp /home/d3phys/Code/language/include/frontend/grammar.h
 lexer.o: lexer.cpp /home/d3phys/Code/language/include/logs.h \
- /home/d3phys/Code/language/include/stack.h \
+ /home/d3phys/Code/language/include/list.h \
+ /home/d3phys/Code/language/include/array.h \
  /home/d3phys/Code/language/include/frontend/token.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
- /home/d3phys/Code/language/include/frontend/grammar.h \
- /home/d3phys/Code/language/include/frontend/lexer.h
+ /home/d3phys/Code/language/include/frontend/grammar.h
+list.o: list.cpp /home/d3phys/Code/language/include/logs.h \
+ /home/d3phys/Code/language/include/list.h
 recursive_descent.o: recursive_descent.cpp \
  /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
- /home/d3phys/Code/language/include/frontend/lexer.h
+ /home/d3phys/Code/language/include/frontend/token.h \
+ /home/d3phys/Code/language/include/list.h
 tree.o: tree.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h

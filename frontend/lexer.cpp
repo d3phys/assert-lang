@@ -5,49 +5,20 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <logs.h>
-#include <stack.h>
+#include <list.h>
+#include <array.h>
 #include <frontend/token.h>
 #include <frontend/tree.h>
 #include <frontend/grammar.h>
-#include <frontend/lexer.h>
 
-struct array {
-        size_t capacity = 0;
-        size_t size     = 0;
-
-        token *data = nullptr;
-};
-
-static const size_t INIT_CAPACITY = 2;
-
-static token *realloc_array(array *const toks, size_t capacity) 
-{
-        if (capacity == 0)
-                capacity = INIT_CAPACITY;
-
-        token *data = (token *)realloc(toks->data, capacity * sizeof(token));
-        if (!data) {
-                perror("Can't realloc token array");
-                return nullptr;
-        }
-
-        toks->capacity = capacity;
-        toks->data     = data;
-
-        return data;
-}
+static token *get_ident(array *const toks, const char **str, array *const vars);
+static token *get_number(array *const toks, const char **str);
 
 static token *create_token(array *const toks, int type) 
 {
         assert(toks);
 
-        if (toks->size >= toks->capacity) {
-                token *data = realloc_array(toks, toks->capacity * 2);
-                if (!data)
-                        return nullptr;
-        }
-
-        token *newbie = &toks->data[toks->size++];
+        token *newbie = (token *)array_create(toks, sizeof(token));
 
         newbie->type       = type;
         newbie->data.ident = nullptr;
@@ -55,25 +26,12 @@ static token *create_token(array *const toks, int type)
         return newbie;
 }
 
-static token *extract_tokens(array *const toks) 
-{
-        assert(toks);
-
-        token *data = realloc_array(toks, toks->size);
-        if (!data)
-                return nullptr;
-
-        toks->data = nullptr;
-        return data;
-}
-
-static char *unique(stack *const stk, const char *str, const size_t len)
+static const char *create_var(array *const variables, const char *str, const size_t len)
 {
         assert(str);
 
-        char **vars = (char **)data_stack(stk);
-
-        for (size_t i = 0; i < stk->size; i++) {
+        char **vars = (char **)variables->data;
+        for (size_t i = 0; i < variables->size; i++) {
                 if (strlen(vars[i]) == len && !strncmp(vars[i], str, len)) 
                         return vars[i];
         }
@@ -87,27 +45,22 @@ static char *unique(stack *const stk, const char *str, const size_t len)
         strncpy(newbie, str, len);
         newbie[len] = '\0';
 
-        push_stack(stk, newbie);
+        array_push(variables, &newbie, sizeof(char *));
 
         return newbie;
 }
 
-static token *get_ident   (array *const toks, const char **str, stack *const vars);
-static token *get_number  (array *const toks, const char **str);
-
-token *tokenize(const char *str)
+token *tokenize(const char *str, array *const variables)
 {
+        assert(str);
+        assert(variables);
+
 #define T(id)                                    \
         tok = create_token(&arr, TOKEN_KEYWORD); \
         tok->data.keyword = id;
 
-        assert(str);
-
-        stack vars = {0};
-        construct_stack(&vars);
-        array arr = {0};
-        arr.capacity = 0;
-        arr.size     = 0;
+        array arr  = {0};
+        array vars = {0};
 
         token *tok = nullptr;
         while (*str != '\0') {
@@ -203,23 +156,17 @@ token *tokenize(const char *str)
 syntax_error:
         printf("ERROR:%s\n", str);
 
-        token *tokens = extract_tokens(&arr);
+        token *tokens = (token *)array_extract(&arr, sizeof(token));
         token *iter   = tokens;
 
+        dump_array(&vars, sizeof(char *), array_string);
         dump_tokens(iter);
-
         free(tokens);
 
-        dump_stack(&vars);
-        while (vars.size > 0) {
-                free(pop_stack(&vars));
-        }
-
-        destruct_stack(&vars);
         return 0;
 }
 
-static token *get_ident(array *const toks, const char **str, stack *const vars)
+static token *get_ident(array *const toks, const char **str, array *const vars)
 {
         assert(str);
         assert(toks);
@@ -236,9 +183,9 @@ static token *get_ident(array *const toks, const char **str, stack *const vars)
 
         while (**str != '\0') {
                 switch (**str) {
-                case ' ':
                 case '\t':
                 case '\n':
+                case ' ':
                 case '=':
                 case '>':
                 case '<':
@@ -261,7 +208,7 @@ static token *get_ident(array *const toks, const char **str, stack *const vars)
                         else if (cmp(KW_RETURN)) { proc(KW_RETURN); }
                         else { 
                                 token *newbie = create_token(toks, TOKEN_IDENT);
-                                newbie->data.ident = unique(vars, start, (size_t)(*str - start));
+                                newbie->data.ident = create_var(vars, start, (size_t)(*str - start));
                                 return newbie;
                         }
                         break;
@@ -273,6 +220,8 @@ static token *get_ident(array *const toks, const char **str, stack *const vars)
 
 #undef cmp
 #undef proc 
+
+        return nullptr;
 }
 
 static token *get_number(array *const toks, const char **str)
@@ -294,9 +243,13 @@ static token *get_number(array *const toks, const char **str)
 
 int main()
 {
+        array variables = {0};
+
+        int a = 3;
         const char *str = "if {}{}{}канстанта если (канстанта ewew111>===0 | y!=2){const hel111lo3=-2.21e12; y = x * 32 ^ result; if (zero < 2 & keyval != 2.2212*321) -0.321e-1 - 1.22 Gar1k; while (result <= 5.0) 32;}";
         printf("\n%s\n", str);
-        tokenize(str);
+
+        tokenize(str, &variables);
         return 0;
 }
 
@@ -311,7 +264,7 @@ void dump_tokens(const token *toks)
                             "================================================\n");
         do {
                 fprintf(logs, "------------------------------------------------\n"
-                              "| %-4d | ", line++);
+                              "| %-4lu | ", line++);
 
                 if (toks->type == TOKEN_KEYWORD) {
                         fprintf(logs, "<font color=\"blue\">keyword</font> | %s [%d or '%c']\n", 
@@ -332,7 +285,7 @@ void dump_tokens(const token *toks)
         } while (true);
 
         fprintf(logs, "================================================\n"
-                      "| Total size: %ld x %ld = %ld bytes             \n"
+                      "| Total size: %lu x %lu = %lu bytes             \n"
                       "| Address: %p                                   \n"
                       "================================================\n\n\n", line, sizeof(token), line * sizeof(token), toks);
 }

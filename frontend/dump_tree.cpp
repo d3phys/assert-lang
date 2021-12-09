@@ -96,13 +96,13 @@ const gviz_options GVEDGE_LEFT = {
 };
 
 struct gviz_node {
-        node *cur = nullptr;
+        ast_node *cur = nullptr;
         const gviz_options *opt = nullptr;
 };
 
 struct gviz_edge {
-        node *from = nullptr;
-        node *to   = nullptr;
+        ast_node *from = nullptr;
+        ast_node *to   = nullptr;
         const gviz_options *opt = nullptr;
 };
 
@@ -116,7 +116,7 @@ static void gvprint_operator(const unsigned type);
 static void gvprint_node(gviz_node *node);
 static void gvprint_edge(gviz_edge *edge);
 
-static void print_node(node *cur);
+static void print_node(ast_node *cur);
 
 static FILE *GVIZ_FILE = nullptr;
 #define gvprint(fmt, ...) fprintf(GVIZ_FILE, fmt, ##__VA_ARGS__);
@@ -133,7 +133,7 @@ static FILE *GVIZ_FILE = nullptr;
  *
  * Note 2! It it really slow...
  */
-void dump_tree(node *root)
+void dump_tree(ast_node *root)
 {
         assert(root);
         static unsigned dump_num = 0;
@@ -183,7 +183,7 @@ void dump_tree(node *root)
         dump_num++;
 }
 
-static void print_node(node *cur)
+static void print_node(ast_node *cur)
 {
         if (cur == nullptr)
                 return;
@@ -271,14 +271,14 @@ static inline void gvprint_content(const gviz_node *node)
 
         switch (node->cur->type) {
         case AST_NODE_IDENT:
-                gvprint("%s\n%p", node_ident(node->cur),
-                                  node_ident(node->cur));
+                gvprint("%s\n%p", ast_ident(node->cur),
+                                  ast_ident(node->cur));
                 break;
         case AST_NODE_NUMBER:
-                gvprint("%lg", node_number(node->cur));
+                gvprint("%lg", ast_number(node->cur));
                 break;
         case AST_NODE_KEYWORD:
-                gvprint_operator(node_keyword(node->cur));
+                gvprint_operator(ast_keyword(node->cur));
                 break;
         default:
                 assert(0);

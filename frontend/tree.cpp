@@ -6,7 +6,7 @@
 
 #include <frontend/tree.h>
 
-double node_number(node *n)
+double ast_number(ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_NUMBER);
@@ -17,7 +17,7 @@ double node_number(node *n)
         return 0;
 }
 
-const char *node_ident(node *n)
+const char *ast_ident(ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_IDENT);
@@ -28,7 +28,7 @@ const char *node_ident(node *n)
         return nullptr;
 }
 
-int node_keyword(node *n)
+int ast_keyword(ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_KEYWORD);
@@ -39,11 +39,11 @@ int node_keyword(node *n)
         return 0;
 }
 
-node *copy_tree(node *n)
+ast_node *copy_tree(ast_node *n)
 {
         assert(n);
 
-        node *newbie = create_node(n->type);
+        ast_node *newbie = create_ast_node(n->type);
         if (!newbie)
                 return nullptr;
 
@@ -70,7 +70,7 @@ node *copy_tree(node *n)
 }
 
 
-void free_tree(node *root)
+void free_tree(ast_node *root)
 {
         assert(root);
 
@@ -82,15 +82,15 @@ void free_tree(node *root)
         free(root);
 }
 
-node *create_node(int type)
+ast_node *create_ast_node(int type)
 {
         assert(type == AST_NODE_IDENT   ||
                type == AST_NODE_NUMBER  ||
                type == AST_NODE_KEYWORD );
 
-$       (node *newbie = (node *)calloc(1, sizeof(node));)
+$       (ast_node *newbie = (ast_node *)calloc(1, sizeof(ast_node));)
         if (!newbie) {
-                fprintf(logs, "Can't create node\n");
+                fprintf(logs, "Can't create ast_node\n");
                 return nullptr;
         }
 
@@ -103,7 +103,7 @@ $       (node *newbie = (node *)calloc(1, sizeof(node));)
         return newbie;
 }
 
-void visit_tree(node *root, void (*action)(node *nd))
+void visit_tree(ast_node *root, void (*action)(ast_node *nd))
 {
         assert(root);
         assert(action);
