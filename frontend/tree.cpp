@@ -6,6 +6,42 @@
 
 #include <frontend/tree.h>
 
+ast_node *set_ast_number(ast_node *n, double number)
+{
+        assert(n);
+        assert(n->type == AST_NODE_NUMBER);
+
+        if (n->type != AST_NODE_NUMBER)
+                return nullptr;
+
+        n->data.number = number;
+        return n;
+}
+
+ast_node *set_ast_ident(ast_node *n, const char *ident)
+{
+        assert(n);
+        assert(n->type == AST_NODE_IDENT);
+
+        if (n->type != AST_NODE_IDENT)
+                return nullptr;
+
+        n->data.ident = ident;
+        return n;
+}
+
+ast_node *set_ast_keyword(ast_node *n, int keyword)
+{
+        assert(n);
+        assert(n->type == AST_NODE_KEYWORD);
+
+        if (n->type != AST_NODE_KEYWORD)
+                return nullptr;
+
+        n->data.keyword = keyword;
+        return n;
+}
+
 double ast_number(ast_node *n)
 {
         assert(n);

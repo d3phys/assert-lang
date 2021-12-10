@@ -290,7 +290,7 @@ static inline void gvprint_content(const gviz_node *node)
 
 static void gvprint_operator(const unsigned type)
 {
-        const char *op = keyword_ident(type);
+        const char *op = ast_keyword_ident(type);
         if (op) {
                 gvprint("%s\n", op);
         }

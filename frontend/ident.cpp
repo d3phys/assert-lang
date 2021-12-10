@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <frontend/grammar.h>
 
 const char *ast_keyword_ident(int id)
@@ -27,7 +28,7 @@ const char *ast_keyword_ident(int id)
         case AST_CALL:   { return "call";      }
         case AST_DECISN: { return "decision";  }
         case AST_FUNC:   { return "function";  }
-        default:         { assert(nullptr); return nullptr; }
+        default:         { fprintf(stderr, "INVALID: %d or %c\n", id);  return "empty"; }
         }
 }
 
@@ -39,6 +40,7 @@ const char *keyword_ident(int id)
         case KW_WHILE:  { return "while";     }
         case KW_RETURN: { return "return";    }
         case KW_CONST:  { return "const";     }
+        case KW_THEN:   { return "then";      }
         case KW_ASSIGN: { return "=";         }
         case KW_GREAT:  { return "<";         }
         case KW_LOW:    { return ">";         }
@@ -55,12 +57,12 @@ const char *keyword_ident(int id)
         case KW_POW:    { return "^";         }
         case KW_BEGIN:  { return "{";         } 
         case KW_END:    { return "}";         }
-        case KW_STEND:  { return ";";         }
-        case KW_OPAR:   { return "(";         }
-        case KW_CPAR:   { return ")";         }
+        case KW_SEP:    { return ";";         }
+        case KW_OPEN:   { return "(";         }
+        case KW_CLOSE:  { return ")";         }
         case KW_CALL:   { return "call";      }
         case KW_DEFINE: { return "define";    }
         case KW_STOP:   { return "$";         }
-        default:        { assert(nullptr); return nullptr; }
+        default:        { fprintf(stderr, "INVALID: %d or %c\n", id);  return "empty"; }
         }
 }

@@ -50,17 +50,16 @@ static const char *create_var(array *const variables, const char *str, const siz
         return newbie;
 }
 
-token *tokenize(const char *str, array *const variables)
+token *tokenize(const char *str, array *const vars)
 {
         assert(str);
-        assert(variables);
+        assert(vars);
 
 #define T(id)                                    \
         tok = create_token(&arr, TOKEN_KEYWORD); \
         tok->data.keyword = id;
 
         array arr  = {0};
-        array vars = {0};
 
         token *tok = nullptr;
         while (*str != '\0') {
@@ -107,10 +106,10 @@ token *tokenize(const char *str, array *const variables)
                         T(KW_AND);
                         break;
                 case '(':
-                        T(KW_OPAR);
+                        T(KW_OPEN);
                         break;
                 case ')':
-                        T(KW_CPAR);
+                        T(KW_CLOSE);
                         break;
                 case '+':
                         T(KW_ADD);
@@ -131,7 +130,7 @@ token *tokenize(const char *str, array *const variables)
                         T(KW_END);
                         break;
                 case ';':
-                        T(KW_STEND);
+                        T(KW_SEP);
                         break;
                 case '^':
                         T(KW_POW);
@@ -141,7 +140,7 @@ token *tokenize(const char *str, array *const variables)
                         str--;
                         break;
                 default:
-                        get_ident(&arr, &str, &vars);
+                        get_ident(&arr, &str, vars);
                         str--;
                         break;
                 }
@@ -157,13 +156,8 @@ syntax_error:
         printf("ERROR:%s\n", str);
 
         token *tokens = (token *)array_extract(&arr, sizeof(token));
-        token *iter   = tokens;
 
-        dump_array(&vars, sizeof(char *), array_string);
-        dump_tokens(iter);
-        free(tokens);
-
-        return 0;
+        return tokens;
 }
 
 static token *get_ident(array *const toks, const char **str, array *const vars)
@@ -206,6 +200,7 @@ static token *get_ident(array *const toks, const char **str, array *const vars)
                         else if (cmp(KW_CONST))  { proc(KW_CONST);  }
                         else if (cmp(KW_DEFINE)) { proc(KW_DEFINE); }
                         else if (cmp(KW_RETURN)) { proc(KW_RETURN); }
+                        else if (cmp(KW_THEN))   { proc(KW_THEN);   }
                         else { 
                                 token *newbie = create_token(toks, TOKEN_IDENT);
                                 newbie->data.ident = create_var(vars, start, (size_t)(*str - start));
@@ -241,41 +236,35 @@ static token *get_number(array *const toks, const char **str)
         return newbie;
 }
 
-int main()
-{
-        array variables = {0};
-
-        int a = 3;
-        const char *str = "if {}{}{}канстанта если (канстанта ewew111>===0 | y!=2){const hel111lo3=-2.21e12; y = x * 32 ^ result; if (zero < 2 & keyval != 2.2212*321) -0.321e-1 - 1.22 Gar1k; while (result <= 5.0) 32;}";
-        printf("\n%s\n", str);
-
-        tokenize(str, &variables);
-        return 0;
-}
-
 void dump_tokens(const token *toks)
 {
         assert(toks);
         
+        size_t total = 0;
+        const token *iter = toks;
+        while ((iter++)->data.keyword != KW_STOP)
+                total++;
+
         size_t line = 0;
         fprintf(logs, "Tokens dump:\n\n");
         fprintf(logs, "%s", "================================================\n"
                             "| <b>Types</b>                                         |\n"
                             "================================================\n");
         do {
-                fprintf(logs, "------------------------------------------------\n"
-                              "| %-4lu | ", line++);
+                fprintf(logs, "+----+----+---------+--------------------------\n"
+                              "|%-3lu |%-3lu | ", line, total - line);
+                line++;
 
                 if (toks->type == TOKEN_KEYWORD) {
-                        fprintf(logs, "<font color=\"blue\">keyword</font> | %s [%d or '%c']\n", 
+                        fprintf(logs, html(blue, "keyword") " | %s [%d or '%c']\n", 
                                         keyword_ident(toks->data.keyword), 
                                         toks->data.keyword, toks->data.keyword);
                 } else if (toks->type == TOKEN_NUMBER) {
-                        fprintf(logs, "<font color=#ca6f1e>number</font>  | %lg\n", toks->data.number);
+                        fprintf(logs, html(#ca6f1e, "number") "  | %lg\n", toks->data.number);
                 } else if (toks->type == TOKEN_IDENT) {
-                        fprintf(logs, "<font color=\"green\">ident</font>   | %s [%p]\n", toks->data.ident, toks->data.ident);
+                        fprintf(logs, html(green, "ident") "   | %s [%p]\n", toks->data.ident, toks->data.ident);
                 } else {
-                        fprintf(logs, "<font color=\"red\">ERROR</font>\n");
+                        fprintf(logs, html(red, "ERROR\n"));
                 }
 
                 if (toks->data.keyword == KW_STOP)

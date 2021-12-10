@@ -28,6 +28,6 @@ recursive_descent.o: recursive_descent.cpp \
  /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
  /home/d3phys/Code/language/include/frontend/token.h \
- /home/d3phys/Code/language/include/list.h
+ /home/d3phys/Code/language/include/array.h
 tree.o: tree.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h
