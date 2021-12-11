@@ -61,88 +61,99 @@ token *tokenize(const char *str, array *const vars)
 
         array arr  = {0};
 
+        bool comment = false;
         token *tok = nullptr;
         while (*str != '\0') {
-                switch (*str) {
-                case ' ':
-                case '\t':
-                case '\n':
-                        break;
-                case '=':
-                        if (*(str+1) == '=') {
-                                T(KW_EQUAL);
-                                str++;
-                        } else {
-                                T(KW_ASSIGN);
-                        }
-                        break;
-                case '>':
-                        if (*(str+1) == '=') {
-                                T(KW_GEQUAL);
-                                str++;
-                        } else {
-                                T(KW_GREAT);
-                        }
-                        break;
-                case '<':
-                        if (*(str+1) == '=') {
-                                T(KW_LEQUAL);
-                                str++;
-                        } else {
-                                T(KW_LOW);
-                        }
-                        break;
-                case '!':
-                        if (*(str+1) != '=')
-                                goto syntax_error;
-
-                        T(KW_NEQUAL);
+                if (*str == '#') {
+                        comment = !comment;
                         str++;
-                        break;
-                case '|':
-                        T(KW_OR);
-                        break;
-                case '&':
-                        T(KW_AND);
-                        break;
-                case '(':
-                        T(KW_OPEN);
-                        break;
-                case ')':
-                        T(KW_CLOSE);
-                        break;
-                case '+':
-                        T(KW_ADD);
-                        break;
-                case '-':
-                        T(KW_SUB);
-                        break;
-                case '*':
-                        T(KW_MUL);
-                        break;
-                case '/':
-                        T(KW_DIV);
-                        break;
-                case '{':
-                        T(KW_BEGIN);
-                        break;
-                case '}':
-                        T(KW_END);
-                        break;
-                case ';':
-                        T(KW_SEP);
-                        break;
-                case '^':
-                        T(KW_POW);
-                        break;
-                case '0'...'9':
-                        get_number(&arr, &str);
-                        str--;
-                        break;
-                default:
-                        get_ident(&arr, &str, vars);
-                        str--;
-                        break;
+                }
+
+                if (!comment) {
+                        switch (*str) {
+                        case ' ':
+                        case '\t':
+                        case '\n':
+                                break;
+                        case '=':
+                                if (*(str+1) == '=') {
+                                        T(KW_EQUAL);
+                                        str++;
+                                } else {
+                                        T(KW_ASSIGN);
+                                }
+                                break;
+                        case '>':
+                                if (*(str+1) == '=') {
+                                        T(KW_GEQUAL);
+                                        str++;
+                                } else {
+                                        T(KW_GREAT);
+                                }
+                                break;
+                        case '<':
+                                if (*(str+1) == '=') {
+                                        T(KW_LEQUAL);
+                                        str++;
+                                } else {
+                                        T(KW_LOW);
+                                }
+                                break;
+                        case '!':
+                                if (*(str+1) != '=')
+                                        goto syntax_error;
+
+                                T(KW_NEQUAL);
+                                str++;
+                                break;
+                        case '|':
+                                T(KW_OR);
+                                break;
+                        case '&':
+                                T(KW_AND);
+                                break;
+                        case '(':
+                                T(KW_OPEN);
+                                break;
+                        case ')':
+                                T(KW_CLOSE);
+                                break;
+                        case '+':
+                                T(KW_ADD);
+                                break;
+                        case '-':
+                                T(KW_SUB);
+                                break;
+                        case '*':
+                                T(KW_MUL);
+                                break;
+                        case '/':
+                                T(KW_DIV);
+                                break;
+                        case '{':
+                                T(KW_BEGIN);
+                                break;
+                        case '}':
+                                T(KW_END);
+                                break;
+                        case ';':
+                                T(KW_SEP);
+                                break;
+                        case '^':
+                                T(KW_POW);
+                                break;
+                        case ',':
+                                T(KW_COMMA);
+                                break;
+                        case '0'...'9':
+                                get_number(&arr, &str);
+                                str--;
+                                break;
+                        default:
+                                get_ident(&arr, &str, vars);
+                                str--;
+                                break;
+                        }
                 }
 
                 str++;
@@ -194,13 +205,18 @@ static token *get_ident(array *const toks, const char **str, array *const vars)
                 case '{':
                 case '}':
                 case ';':
+                case '#':
+                case ',':
+                case '^':
                              if (cmp(KW_IF))     { proc(KW_IF);     }
                         else if (cmp(KW_ELSE))   { proc(KW_ELSE);   }
+                        else if (cmp(KW_SIN))    { proc(KW_SIN);    }
+                        else if (cmp(KW_COS))    { proc(KW_COS);    }
                         else if (cmp(KW_WHILE))  { proc(KW_WHILE);  }
                         else if (cmp(KW_CONST))  { proc(KW_CONST);  }
                         else if (cmp(KW_DEFINE)) { proc(KW_DEFINE); }
                         else if (cmp(KW_RETURN)) { proc(KW_RETURN); }
-                        else if (cmp(KW_THEN))   { proc(KW_THEN);   }
+                        else if (cmp(KW_ASSERT)) { proc(KW_ASSERT); }
                         else { 
                                 token *newbie = create_token(toks, TOKEN_IDENT);
                                 newbie->data.ident = create_var(vars, start, (size_t)(*str - start));

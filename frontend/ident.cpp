@@ -26,9 +26,12 @@ const char *ast_keyword_ident(int id)
         case AST_STMT:   { return "statement"; }
         case AST_PARAM:  { return "parameter"; }
         case AST_CALL:   { return "call";      }
+        case AST_CONST:  { return "const";     }
         case AST_DECISN: { return "decision";  }
         case AST_FUNC:   { return "function";  }
-        default:         { fprintf(stderr, "INVALID: %d or %c\n", id);  return "empty"; }
+        case AST_SIN:    { return "sin";       }
+        case AST_COS:    { return "cos";       }
+        default:         { fprintf(stderr, "INVALID AST: %d or %c\n", id, id);  return "empty"; }
         }
 }
 
@@ -39,7 +42,7 @@ const char *keyword_ident(int id)
         case KW_ELSE:   { return "else";      }
         case KW_WHILE:  { return "while";     }
         case KW_RETURN: { return "return";    }
-        case KW_CONST:  { return "const";     }
+        case KW_CONST:  { return "inv";       }
         case KW_THEN:   { return "then";      }
         case KW_ASSIGN: { return "=";         }
         case KW_GREAT:  { return "<";         }
@@ -58,11 +61,15 @@ const char *keyword_ident(int id)
         case KW_BEGIN:  { return "{";         } 
         case KW_END:    { return "}";         }
         case KW_SEP:    { return ";";         }
+        case KW_COMMA:  { return ",";         }
         case KW_OPEN:   { return "(";         }
         case KW_CLOSE:  { return ")";         }
         case KW_CALL:   { return "call";      }
-        case KW_DEFINE: { return "define";    }
+        case KW_DEFINE: { return "dump";      }
+        case KW_ASSERT: { return "assert";    }
         case KW_STOP:   { return "$";         }
-        default:        { fprintf(stderr, "INVALID: %d or %c\n", id);  return "empty"; }
+        case KW_SIN:    { return "sin";       }
+        case KW_COS:    { return "cos";       }
+        default:        { fprintf(stderr, "INVALID: %d or %c\n", id, id);  return "empty"; }
         }
 }

@@ -118,6 +118,36 @@ void free_tree(ast_node *root)
         free(root);
 }
 
+ast_node *create_ast_keyword(int keyword) 
+{
+        ast_node *newbie = create_ast_node(AST_NODE_KEYWORD);
+        if (!newbie)
+                return nullptr;
+
+        set_ast_keyword(newbie, keyword);
+        return newbie;
+}
+
+ast_node *create_ast_number(int number) 
+{
+        ast_node *newbie = create_ast_node(AST_NODE_NUMBER);
+        if (!newbie)
+                return nullptr;
+
+        set_ast_number(newbie, number);
+        return newbie;
+}
+
+ast_node *create_ast_ident(const char *ident) 
+{
+        ast_node *newbie = create_ast_node(AST_NODE_IDENT);
+        if (!newbie)
+                return nullptr;
+
+        set_ast_ident(newbie, ident);
+        return newbie;
+}
+
 ast_node *create_ast_node(int type)
 {
         assert(type == AST_NODE_IDENT   ||
