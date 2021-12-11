@@ -128,7 +128,7 @@ ast_node *create_ast_keyword(int keyword)
         return newbie;
 }
 
-ast_node *create_ast_number(int number) 
+ast_node *create_ast_number(double number) 
 {
         ast_node *newbie = create_ast_node(AST_NODE_NUMBER);
         if (!newbie)
