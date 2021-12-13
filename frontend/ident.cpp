@@ -23,6 +23,7 @@ const char *ast_keyword_ident(int id)
         case AST_MUL:    { return "*";         }
         case AST_POW:    { return "^";         }
         case AST_DEFINE: { return "define";    }
+        case AST_INIT:   { return "initializer"; }
         case AST_STMT:   { return "statement"; }
         case AST_PARAM:  { return "parameter"; }
         case AST_CALL:   { return "call";      }
@@ -42,7 +43,7 @@ const char *keyword_ident(int id)
         case KW_ELSE:   { return "else";      }
         case KW_WHILE:  { return "while";     }
         case KW_RETURN: { return "return";    }
-        case KW_CONST:  { return "inv";       }
+        case KW_CONST:  { return "invariant"; }
         case KW_THEN:   { return "then";      }
         case KW_ASSIGN: { return "=";         }
         case KW_GREAT:  { return "<";         }
@@ -60,6 +61,8 @@ const char *keyword_ident(int id)
         case KW_POW:    { return "^";         }
         case KW_BEGIN:  { return "{";         } 
         case KW_END:    { return "}";         }
+        case KW_QOPEN:  { return "[";         } 
+        case KW_QCLOSE: { return "]";         }
         case KW_SEP:    { return ";";         }
         case KW_COMMA:  { return ",";         }
         case KW_OPEN:   { return "(";         }

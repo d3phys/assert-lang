@@ -11,28 +11,30 @@
 
 #define require(__keyword)                 \
 do {                                       \
-        if (keyword(*toks) != __keyword) {  \
+        if (keyword(*toks) != __keyword) { \
                 return syntax_error(toks); \
         }                                  \
         move(toks);                        \
 } while (0)
 
 #ifdef ERROR_TRACE
-#define syntax_error(toks) \
-        fprintf(logs, html(red, bold("Syntax error in %s, line: %d\n")), __PRETTY_FUNCTION__, __LINE__),\
+
+#define syntax_error(toks)                                               \
+        fprintf(logs, html(red, bold("Syntax error in %s, line: %d\n")), \
+                      __PRETTY_FUNCTION__, __LINE__),                    \
         dump_tokens(*toks), nullptr
 
-#define core_error(toks) \
-        fprintf(logs, html(red, bold("Core error in %s, line: %d\n")), __PRETTY_FUNCTION__, __LINE__),\
+#define core_error(toks)                                                 \
+        fprintf(logs, html(red, bold("Core error in %s, line: %d\n")),   \
+                      __PRETTY_FUNCTION__, __LINE__),                    \
         dump_tokens(*toks), nullptr
 
-//#define syntax_error(toks)   fprintf(logs, html(red, bold("Syntax error in %s, line: %d\n"  )), __PRETTY_FUNCTION__, __LINE__), nullptr
-//#define core_error(toks) dump_tokens(*toks), fprintf(logs, html(red, bold("Core error in %s, line: %d\n")), __PRETTY_FUNCTION__, __LINE__), nullptr
-//#define core_error(toks)   fprintf(logs, html(red, bold("Core error in %s, line: %d\n"  )), __PRETTY_FUNCTION__, __LINE__), nullptr
-#else
+#else 
+
 static ast_node *syntax_error(token **toks);
 static ast_node *core_error  (token **toks);
-#endif
+
+#endif /* ERROR_TRACE */
 
 static token *next(token **toks);
 static token *move(token **toks);
@@ -40,8 +42,6 @@ static token *move(token **toks);
 static int       keyword(token *tok);
 static double    *number(token *tok);
 static const char *ident(token *tok);
-
-static ast_node *create_stmt();
 
 ast_node    *grammar_rule(token **toks);
 ast_node     *assign_rule(token **toks);
@@ -56,6 +56,7 @@ ast_node   *exponent_rule(token **toks);
 
 ast_node         *if_rule(token **toks);
 ast_node      *while_rule(token **toks);
+ast_node      *array_rule(token **toks);
 ast_node      *ident_rule(token **toks);
 ast_node     *number_rule(token **toks);
 ast_node   *function_rule(token **toks);
@@ -70,13 +71,29 @@ int main()
         char *str = (char *)calloc(SIZE, sizeof(char));
         fread(str, sizeof(char), SIZE, f);
         printf("%s\n", str);
-        //fscanf(f, "%s", str);
 
-        //const char *str = "{ if (x == 3){ result = 1; }  result = 1 / (2 - 3) - 4; result = 2 * 32; x = 2; }";
         create_ast(str);
 
         free(str);
         return 0;
+}
+
+void save_ast_tree(FILE *file, ast_node *const tree)
+{
+        assert(file);
+        assert(tree);
+
+        fprintf(file, "(");
+
+        if (tree->left)
+                save_ast_tree(file, tree->left);
+
+        save_ast_node(file, tree);
+
+        if (tree->right)
+                save_ast_tree(file, tree->right);
+
+        fprintf(file, ")");
 }
 
 ast_node *create_ast(const char *str)
@@ -94,6 +111,9 @@ $       (dump_array(&names, sizeof(char *), array_string);)
         ast_node *tree = grammar_rule(&iter);
         fprintf(logs, "\n\n%s\n\n", str);
         $(dump_tree(tree);)
+
+        FILE *tr = fopen("tree", "w");
+        save_ast_tree(tr, tree);
 
         free_tree(tree);
         free(toks);
@@ -176,10 +196,48 @@ ast_node *assign_rule(token **toks)
 
         ast_node *constant = nullptr;
         if (keyword(*toks) == KW_CONST) {
-                move(toks);
+                require(KW_CONST);
                 constant = create_ast_keyword(AST_CONST);
                 if (!constant)
                         return core_error(toks);
+        }
+
+        if (keyword(next(toks)) == KW_QOPEN) {
+                root->left = array_rule(toks);
+                if (!root->left)
+                        return syntax_error(toks);
+
+                root->left->left = constant; 
+
+                require(KW_ASSIGN);
+                require(KW_BEGIN);
+
+                root->right = create_ast_keyword(AST_INIT);
+                if (!root->right)
+                        return core_error(toks);
+
+                root->right->right = expression_rule(toks);
+                if (!root->right->right)
+                        return syntax_error(toks);
+
+                while (keyword(*toks) == KW_COMMA) {
+                        require(KW_COMMA);
+
+                        ast_node *init = create_ast_keyword(AST_INIT);
+                        if (!init)
+                                return core_error(toks);
+
+                        init->right = expression_rule(toks);
+                        if (!init->right)
+                                return syntax_error(toks);
+
+                        init->left = root->right;
+                        root->right = init;
+                }
+
+                require(KW_END);
+
+                return root;
         }
 
         root->left = ident_rule(toks);
@@ -187,11 +245,14 @@ ast_node *assign_rule(token **toks)
                 return syntax_error(toks);
 
         root->left->left = constant; 
-
         require(KW_ASSIGN);
 
-        root->right = expression_rule(toks);
+        root->right = create_ast_keyword(AST_INIT);
         if (!root->right)
+                return core_error(toks);
+
+        root->right->right = expression_rule(toks);
+        if (!root->right->right)
                 return syntax_error(toks);
 
         return root;
@@ -652,6 +713,28 @@ ast_node *function_rule(token **toks)
         return root;
 }
 
+ast_node *array_rule(token **toks)
+{
+        assert(toks);
+
+        if (!ident(*toks))
+                return syntax_error(toks);
+
+        ast_node *root = ident_rule(toks);
+        if (!root) 
+                return syntax_error(toks);
+
+        require(KW_QOPEN);
+
+        root->right = expression_rule(toks);
+        if (!root->right)
+                return syntax_error(toks);
+
+        require(KW_QCLOSE);
+
+        return root;
+}
+
 ast_node *exponent_rule(token **toks) 
 {
         assert(toks);
@@ -662,6 +745,14 @@ ast_node *exponent_rule(token **toks)
 
                 if (keyword(next(toks)) == KW_OPEN) {
                         root = function_rule(toks);
+                        if (!root)
+                                return syntax_error(toks);
+
+                        return root;
+                }
+
+                if (keyword(next(toks)) == KW_QOPEN) {
+                        root = array_rule(toks);
                         if (!root)
                                 return syntax_error(toks);
 

@@ -5,6 +5,8 @@
 #include <limits.h>
 
 #include <frontend/tree.h>
+#include <frontend/grammar.h>
+
 
 ast_node *set_ast_number(ast_node *n, double number)
 {
@@ -185,3 +187,25 @@ void visit_tree(ast_node *root, void (*action)(ast_node *nd))
                 visit_tree(root->right, action);
 }
 
+int save_ast_node(FILE *file, ast_node *node) 
+{
+        assert(file);
+        assert(node);
+
+        switch (node->type) {
+        case AST_NODE_IDENT:
+                fprintf(file, "'%s'", ast_ident(node));
+                break;
+        case AST_NODE_NUMBER:
+                fprintf(file, "%lg", ast_number(node));
+                break;
+        case AST_NODE_KEYWORD:
+                fprintf(file, "%s", ast_keyword_ident(ast_keyword(node)));
+                break;
+        default:
+                assert(0);
+                break;
+        }
+
+        return 0;
+}

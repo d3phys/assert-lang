@@ -136,6 +136,12 @@ token *tokenize(const char *str, array *const vars)
                         case '}':
                                 T(KW_END);
                                 break;
+                        case '[':
+                                T(KW_QOPEN);
+                                break;
+                        case ']':
+                                T(KW_QCLOSE);
+                                break;
                         case ';':
                                 T(KW_SEP);
                                 break;
@@ -179,7 +185,7 @@ static token *get_ident(array *const toks, const char **str, array *const vars)
         const char *start = *str;
 
 
-#define cmp(tok)  !strncmp(start, keyword_ident(tok), (size_t)(*str - start))
+#define cmp(tok)  !strncmp(start, keyword_ident(tok), strlen(keyword_ident(tok)))//(size_t)(*str - start))
 
 #define proc(id)                                      \
         token* t = create_token(toks, TOKEN_KEYWORD); \
@@ -204,6 +210,8 @@ static token *get_ident(array *const toks, const char **str, array *const vars)
                 case '/':
                 case '{':
                 case '}':
+                case '[':
+                case ']':
                 case ';':
                 case '#':
                 case ',':
