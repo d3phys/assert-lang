@@ -11,14 +11,113 @@
 #include <frontend/tree.h>
 #include <frontend/grammar.h>
 
-static token *get_ident(array *const toks, const char **str, array *const vars);
-static token *get_number(array *const toks, const char **str);
+static token *lexer_error(const char *str) { return nullptr; }
+static token  *core_error() { return nullptr; }
 
-static token *create_token(array *const toks, int type) 
+static token *create_keyword(array *const tokens, int keyword);
+static token *create_number (array *const tokens, const char **str);
+static token *create_ident(array *const tokens, const char *str, 
+                           array *const idents, const size_t len);
+
+static token *read_keyword(array *const tokens, const char *str, 
+                           array *const idents, size_t length);
+
+token *tokenize(const char *str, array *const idents)
 {
-        assert(toks);
+        assert(str);
+        assert(idents);
 
-        token *newbie = (token *)array_create(toks, sizeof(token));
+        array tokens = {0};
+
+        const char *start = str;
+
+        while (*str != '\0') {
+                
+                if (isspace(*str)) {
+                        if (start != str) {
+                                read_keyword(&tokens, start, 
+                                              idents, (size_t)(str - start));
+                        }
+                        start = ++str;
+                        continue;
+                }
+
+#define LINKABLE(xxx)
+#define UNLINKABLE(xxx) xxx
+#define KEYWORD(name, keyword, ident)                                          \
+                else if (!strncmp(ident, str, sizeof(ident) - 1)) {            \
+                        if (start != str)                                      \
+                                read_keyword(&tokens, start,                   \
+                                              idents, (size_t)(str - start));  \
+                        create_keyword(&tokens, keyword);                      \
+                        str += sizeof(ident) - 1;                              \
+                        start = str;                                           \
+                        continue;                                              \
+                }
+
+                if (0) {} 
+#include "../KEYWORDS"
+#undef LINKABLE
+#undef UNLINKABLE 
+#undef KEYWORD 
+
+                if (isdigit(*str) && start == str) {
+                        create_number(&tokens, &str);
+                        start = str;
+                        continue;
+                }
+
+                str++;
+        }
+
+        create_keyword(&tokens, KW_STOP);
+
+        token *toks = (token *)array_extract(&tokens, sizeof(token));
+        if (!toks)
+                return core_error();
+
+        return toks;
+}
+
+static token *read_keyword(array *const tokens, const char *str, 
+                           array *const idents, size_t length) 
+{
+        assert(tokens);
+        assert(idents);
+        assert(str);
+
+
+#define LINKABLE(xxx) xxx
+#define UNLINKABLE(xxx) 
+#define KEYWORD(name, keyword, ident)                                             \
+                if (sizeof(ident) - 1 == length) {                                \
+                        if (!strncmp(ident, str, length)) {                       \
+                                token *newbie = create_keyword(tokens, keyword);  \
+                                if (!newbie)                                      \
+                                        return core_error();                      \
+                                                                                  \
+                                return newbie;                                    \
+                        }                                                         \
+                }
+
+                if (0) {} 
+#include "../KEYWORDS"
+#undef LINKABLE
+#undef UNLINKABLE 
+#undef KEYWORD 
+
+        token *ident = create_ident(tokens, str, idents, length);
+        if (!ident)
+                return core_error();
+
+        return ident;
+}
+
+static token *create_token(array *const tokens, int type) 
+{
+        assert(tokens);
+
+        token *newbie = (token *)array_create(tokens, sizeof(token));
 
         newbie->type       = type;
         newbie->data.ident = nullptr;
@@ -26,236 +125,70 @@ static token *create_token(array *const toks, int type)
         return newbie;
 }
 
-static const char *create_var(array *const variables, const char *str, const size_t len)
+static token *create_keyword(array *const tokens, int keyword)
 {
-        assert(str);
+        assert(tokens);
 
-        char **vars = (char **)variables->data;
-        for (size_t i = 0; i < variables->size; i++) {
-                if (strlen(vars[i]) == len && !strncmp(vars[i], str, len)) 
-                        return vars[i];
-        }
+        token *newbie = create_token(tokens, TOKEN_KEYWORD);
+        if (!newbie)
+                return core_error();
 
-        char *newbie = (char *)calloc(len + 1, sizeof(char));
-        if (!newbie) {
-                perror("Failed to allocate variable name");
-                return nullptr;
-        }
-
-        strncpy(newbie, str, len);
-        newbie[len] = '\0';
-
-        array_push(variables, &newbie, sizeof(char *));
+        newbie->data.keyword = keyword;
 
         return newbie;
 }
 
-token *tokenize(const char *str, array *const vars)
+static token *create_ident(array *const tokens, const char *str, array *const idents, const size_t len)
 {
         assert(str);
-        assert(vars);
+        assert(tokens);
+        assert(idents);
 
-#define T(id)                                    \
-        tok = create_token(&arr, TOKEN_KEYWORD); \
-        tok->data.keyword = id;
-
-        array arr  = {0};
-
-        bool comment = false;
-        token *tok = nullptr;
-        while (*str != '\0') {
-                if (*str == '#') {
-                        comment = !comment;
-                        str++;
-                }
-
-                if (!comment) {
-                        switch (*str) {
-                        case ' ':
-                        case '\t':
-                        case '\n':
-                                break;
-                        case '=':
-                                if (*(str+1) == '=') {
-                                        T(KW_EQUAL);
-                                        str++;
-                                } else {
-                                        T(KW_ASSIGN);
-                                }
-                                break;
-                        case '>':
-                                if (*(str+1) == '=') {
-                                        T(KW_GEQUAL);
-                                        str++;
-                                } else {
-                                        T(KW_GREAT);
-                                }
-                                break;
-                        case '<':
-                                if (*(str+1) == '=') {
-                                        T(KW_LEQUAL);
-                                        str++;
-                                } else {
-                                        T(KW_LOW);
-                                }
-                                break;
-                        case '!':
-                                if (*(str+1) != '=')
-                                        goto syntax_error;
-
-                                T(KW_NEQUAL);
-                                str++;
-                                break;
-                        case '|':
-                                T(KW_OR);
-                                break;
-                        case '&':
-                                T(KW_AND);
-                                break;
-                        case '(':
-                                T(KW_OPEN);
-                                break;
-                        case ')':
-                                T(KW_CLOSE);
-                                break;
-                        case '+':
-                                T(KW_ADD);
-                                break;
-                        case '-':
-                                T(KW_SUB);
-                                break;
-                        case '*':
-                                T(KW_MUL);
-                                break;
-                        case '/':
-                                T(KW_DIV);
-                                break;
-                        case '{':
-                                T(KW_BEGIN);
-                                break;
-                        case '}':
-                                T(KW_END);
-                                break;
-                        case '[':
-                                T(KW_QOPEN);
-                                break;
-                        case ']':
-                                T(KW_QCLOSE);
-                                break;
-                        case ';':
-                                T(KW_SEP);
-                                break;
-                        case '^':
-                                T(KW_POW);
-                                break;
-                        case ',':
-                                T(KW_COMMA);
-                                break;
-                        case '0'...'9':
-                                get_number(&arr, &str);
-                                str--;
-                                break;
-                        default:
-                                get_ident(&arr, &str, vars);
-                                str--;
-                                break;
-                        }
-                }
-
-                str++;
-        }
-
-        T(KW_STOP);
-        
-#undef T 
-
-syntax_error:
-        printf("ERROR:%s\n", str);
-
-        token *tokens = (token *)array_extract(&arr, sizeof(token));
-
-        return tokens;
-}
-
-static token *get_ident(array *const toks, const char **str, array *const vars)
-{
-        assert(str);
-        assert(toks);
-
-        const char *start = *str;
-
-
-#define cmp(tok)  !strncmp(start, keyword_ident(tok), strlen(keyword_ident(tok)))//(size_t)(*str - start))
-
-#define proc(id)                                      \
-        token* t = create_token(toks, TOKEN_KEYWORD); \
-        t->data.keyword = id;                         \
-        return t;
-
-        while (**str != '\0') {
-                switch (**str) {
-                case '\t':
-                case '\n':
-                case ' ':
-                case '=':
-                case '>':
-                case '<':
-                case '!':
-                case '&':
-                case '(':
-                case ')':
-                case '+':
-                case '-':
-                case '*':
-                case '/':
-                case '{':
-                case '}':
-                case '[':
-                case ']':
-                case ';':
-                case '#':
-                case ',':
-                case '^':
-                             if (cmp(KW_IF))     { proc(KW_IF);     }
-                        else if (cmp(KW_ELSE))   { proc(KW_ELSE);   }
-                        else if (cmp(KW_SIN))    { proc(KW_SIN);    }
-                        else if (cmp(KW_COS))    { proc(KW_COS);    }
-                        else if (cmp(KW_WHILE))  { proc(KW_WHILE);  }
-                        else if (cmp(KW_CONST))  { proc(KW_CONST);  }
-                        else if (cmp(KW_DEFINE)) { proc(KW_DEFINE); }
-                        else if (cmp(KW_RETURN)) { proc(KW_RETURN); }
-                        else if (cmp(KW_ASSERT)) { proc(KW_ASSERT); }
-                        else { 
-                                token *newbie = create_token(toks, TOKEN_IDENT);
-                                newbie->data.ident = create_var(vars, start, (size_t)(*str - start));
-                                return newbie;
-                        }
-                        break;
-                default:
-                        (*str)++;
+        char *ident = nullptr;
+        char **keys = (char **)idents->data;
+        for (size_t i = 0; i < idents->size; i++) {
+                if (strlen(keys[i]) == len && !strncmp(keys[i], str, len)) {
+                        ident = keys[i];
                         break;
                 }
         }
 
-#undef cmp
-#undef proc 
+        if (!ident) {
+                ident = (char *)calloc(len + 1, sizeof(char));
+                if (!ident)
+                        return core_error();
 
-        return nullptr;
+                strncpy(ident, str, len);
+                ident[len] = '\0';
+
+                array_push(idents, &ident, sizeof(char *));
+        }
+
+        token *newbie = create_token(tokens, TOKEN_IDENT);
+        if (!newbie)
+                return core_error();
+
+        newbie->data.ident = ident;
+
+        return newbie;
 }
 
-static token *get_number(array *const toks, const char **str)
+static token *create_number(array *const tokens, const char **str)
 {
         assert(str && *str);
-        assert(toks);
+        assert(tokens);
 
-        double num = 0;
-        int n      = 0;
+        double number = 0;
+        int n_skip = 0;
 
-        sscanf(*str, "%lf%n", &num, &n);
-        token *newbie = create_token(toks, TOKEN_NUMBER);
-        newbie->data.number = num;
+        sscanf(*str, "%lf%n", &number, &n_skip);
+        token *newbie = create_token(tokens, TOKEN_NUMBER);
+        if (!newbie)
+                return core_error();
 
-        *str += n;
+        newbie->data.number = number;
+
+        *str += n_skip;
 
         return newbie;
 }
@@ -302,11 +235,4 @@ void dump_tokens(const token *toks)
                       "| Address: %p                                   \n"
                       "================================================\n\n\n", line, sizeof(token), line * sizeof(token), toks);
 }
-
-
-
-
-
-
-
 

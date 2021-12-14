@@ -38,41 +38,16 @@ const char *ast_keyword_ident(int id)
 
 const char *keyword_ident(int id)
 {
+#define   LINKABLE(xxx) xxx
+#define UNLINKABLE(xxx) xxx
+#define KEYWORD(name, keyword, ident) case KW_##name: { return ident; }
+
         switch (id) {
-        case KW_IF:     { return "if";        }
-        case KW_ELSE:   { return "else";      }
-        case KW_WHILE:  { return "while";     }
-        case KW_RETURN: { return "return";    }
-        case KW_CONST:  { return "invariant"; }
-        case KW_THEN:   { return "then";      }
-        case KW_ASSIGN: { return "=";         }
-        case KW_GREAT:  { return "<";         }
-        case KW_LOW:    { return ">";         }
-        case KW_EQUAL:  { return "==";        }
-        case KW_GEQUAL: { return ">=";        }
-        case KW_LEQUAL: { return "<=";        }
-        case KW_NEQUAL: { return "!=";        }
-        case KW_AND:    { return "&&";        }
-        case KW_OR:     { return "||";        }
-        case KW_ADD:    { return "+";         }
-        case KW_SUB:    { return "-";         }
-        case KW_DIV:    { return "/";         }
-        case KW_MUL:    { return "*";         }
-        case KW_POW:    { return "^";         }
-        case KW_BEGIN:  { return "{";         } 
-        case KW_END:    { return "}";         }
-        case KW_QOPEN:  { return "[";         } 
-        case KW_QCLOSE: { return "]";         }
-        case KW_SEP:    { return ";";         }
-        case KW_COMMA:  { return ",";         }
-        case KW_OPEN:   { return "(";         }
-        case KW_CLOSE:  { return ")";         }
-        case KW_CALL:   { return "call";      }
-        case KW_DEFINE: { return "dump";      }
-        case KW_ASSERT: { return "assert";    }
-        case KW_STOP:   { return "$";         }
-        case KW_SIN:    { return "sin";       }
-        case KW_COS:    { return "cos";       }
+#include "../KEYWORDS"
         default:        { fprintf(stderr, "INVALID: %d or %c\n", id, id);  return "empty"; }
         }
+
+#undef KEYWORD
+#undef LINKABLE
+#undef UNLINKABLE
 }

@@ -33,6 +33,20 @@ enum ast_type {
        AST_SIN    = 0xDED22,
 };
 
+
+enum keyword_type {
+#define   LINKABLE(xxx) xxx
+#define UNLINKABLE(xxx) xxx
+#define KEYWORD(name, keyword, ident) KW_##name = keyword,
+
+#include "../KEYWORDS"
+
+#undef KEYWORD
+#undef LINKABLE
+#undef UNLINKABLE
+};
+
+/*
 enum keyword_type {
        KW_NULL   =   0, 
        KW_ELSE   = 'e', 
@@ -70,6 +84,7 @@ enum keyword_type {
        KW_COS    = 0x10321,
        KW_SIN    = 0x10322,
 };
+*/
 
 const char *keyword_ident(int id);
 const char *ast_keyword_ident(int id);
