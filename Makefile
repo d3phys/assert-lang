@@ -54,7 +54,7 @@ CXXFLAGS = -g -D 'LOG_FILE="log.html"' --static-pie -std=c++14 -fmax-errors=100 
 	   -fsanitize=vptr                                                 \
 	   -lm -pie                                          
 
-SUBDIRS = lib core test
+SUBDIRS = lib frontend ast
 
 CXX = g++
 CPP = $(CXX) -E 
@@ -68,12 +68,19 @@ HPATH  = $(TOPDIR)/include
 
 make: subdirs
 	$(OBJS)
+	$(CXX) $(CXXFLAGS) -o build lib/lib.o frontend/frontend.o ast/ast.o
+	./build
+
+front: subdirs
+	$(OBJS)
+	$(CXX) $(CXXFLAGS) -o front lib/lib.o \
+			      frontend/frontend.o ast/ast.o frontend/main.o
 
 mur: subdirs
 	$(CXX) $(CXXFLAGS) -o mur utils/mur.o lib/lib.o
 
 test: make 
-	$(CXX) $(CXXFLAGS) -o tst test/test_logs.o core/core.o lib/lib.o
+	$(CXX) $(CXXFLAGS) -o tst test/test_logs.o core/core.o lib/lib.o ast/ast.o
 	./tst
 
 touch:

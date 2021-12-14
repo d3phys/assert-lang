@@ -2,6 +2,7 @@
 #define TREE_H
 
 #include <stdint.h>
+#include <array.h>
 
 enum ast_node_type {
         AST_NODE_KEYWORD  = 0x01,
@@ -48,11 +49,13 @@ void free_tree(ast_node *root);
 ast_node *create_ast_node(int type);
 ast_node *copy_tree(ast_node *n);
 
-int save_ast_node(FILE *file, ast_node *const node);
 void save_ast_tree(FILE *file, ast_node *const tree);
+ast_node *read_ast_tree(FILE *file, array *const idents);
 
 size_t calc_tree_size(ast_node *n);
 ast_node *compare_trees(ast_node *t1, ast_node *t2);
+
+const char *ast_keyword_string(int keyword);
 
 #define TREE_DEBUG
 
@@ -61,6 +64,7 @@ void dump_tree(ast_node *root);
 #else /* TREE_DEBUG */
 static inline void dump_tree(ast_node *root) {}
 #endif /* TREE_DEBUG */
+
 
 #endif /* TREE_H */
 

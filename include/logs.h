@@ -5,6 +5,18 @@
 
 extern FILE *logs;
 
+enum ascii_colors {
+        ASCII_red    = 1,
+        ASCII_green  = 2,
+        ASCII_yellow = 3,
+        ASCII_blue   = 4,
+        ASCII_white  = 7,
+};
+
+char *local_time(const char *const fmt);
+
+#define ascii(color, fmt) "\u001b[3%dm" fmt "\u001b[0m", ASCII_##color
+
 #define html(color, fmt) "<font color=\"" #color "\">" fmt "</font>"
 
 #define bold(fmt)   "<b>" fmt "</b>"

@@ -2,12 +2,14 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <logs.h>
-#include <frontend/grammar.h>
-#include <frontend/tree.h>
+
+#include <ast/tree.h>
+#include <ast/keyword.h>
+
+#include <frontend/keyword.h>
 #include <frontend/token.h>
 
-#define ERROR_TRACE
-
+//#define ERROR_TRACE
 
 #define require(__keyword)                 \
 do {                                       \
@@ -33,6 +35,7 @@ do {                                       \
 
 static ast_node *syntax_error(token **toks);
 static ast_node *core_error  (token **toks);
+static void print_token(token *tok);
 
 #endif /* ERROR_TRACE */
 
@@ -63,6 +66,7 @@ ast_node   *function_rule(token **toks);
 
 ast_node *create_ast(const char *str);
 
+/*
 int main() 
 {
         FILE *f = fopen("code", "r");
@@ -77,43 +81,24 @@ int main()
         free(str);
         return 0;
 }
+*/
 
-void save_ast_tree(FILE *file, ast_node *const tree)
+
+ast_node *create_ast(const char *source_code)
 {
-        assert(file);
-        assert(tree);
-
-        fprintf(file, "(");
-
-        if (tree->left)
-                save_ast_tree(file, tree->left);
-
-        save_ast_node(file, tree);
-
-        if (tree->right)
-                save_ast_tree(file, tree->right);
-
-        fprintf(file, ")");
-}
-
-ast_node *create_ast(const char *str)
-{
-        assert(str);
+        assert(source_code);
 
         array names = {0};
-        token *toks = tokenize(str, &names);
-        fprintf(logs, "\n\n%s\n\n", str);
+        token *toks = tokenize(source_code, &names);
+        fprintf(logs, "\n\n%s\n\n", source_code);
 $       (dump_tokens(toks);)
 $       (dump_array(&names, sizeof(char *), array_string);)
 
         token *iter = toks;
 
         ast_node *tree = grammar_rule(&iter);
-        fprintf(logs, "\n\n%s\n\n", str);
+        fprintf(logs, "\n\n%s\n\n", source_code);
         $(dump_tree(tree);)
-
-        FILE *tr = fopen("tree", "w");
-        save_ast_tree(tr, tree);
 
         free_tree(tree);
         free(toks);
@@ -795,7 +780,9 @@ static ast_node *syntax_error(token **toks)
 {
         assert(toks);
 
-        printf("Syntax error\n");
+        fprintf(stderr, ascii(red, "Syntax error -- "));
+        print_token(*toks);
+        //dump_tokens(*toks)
         return nullptr;
 }
 
@@ -803,7 +790,8 @@ static ast_node *core_error(token **toks)
 {
         assert(toks);
 
-        printf("Core error: \n");
+        fprintf(stderr, ascii(red, "Core error -- "));
+        print_token(*toks);
         return nullptr;
 }
 #endif
@@ -851,3 +839,25 @@ static const char *ident(token *tok)
         return nullptr;
 }
 
+static void print_token(token *toks) 
+{
+        assert(toks);
+
+        switch (toks->type) {
+        case TOKEN_KEYWORD:
+                fprintf(stderr, "keyword: %s [%d or '%c']\n", 
+                                keyword_string(toks->data.keyword), 
+                                toks->data.keyword, toks->data.keyword);
+                break;
+        case TOKEN_NUMBER:
+                fprintf(stderr, ascii(blue, "number: %lg\n"), toks->data.number);
+                break;
+        case TOKEN_IDENT:
+                fprintf(stderr, ascii(white, "ident: %s [%p]\n"), toks->data.ident, 
+                                                                  toks->data.ident);
+                break;
+        default:
+                fprintf(stderr, "Can't provide info");
+                break;
+        }
+}

@@ -7,9 +7,10 @@
 #include <logs.h>
 #include <list.h>
 #include <array.h>
+#include <ast/tree.h>
+
 #include <frontend/token.h>
-#include <frontend/tree.h>
-#include <frontend/grammar.h>
+#include <frontend/keyword.h>
 
 static token *lexer_error(const char *str) { return nullptr; }
 static token  *core_error() { return nullptr; }
@@ -222,7 +223,7 @@ void dump_tokens(const token *toks)
 
                 if (toks->type == TOKEN_KEYWORD) {
                         fprintf(logs, html(blue, "keyword") " | %s [%d or '%c']\n", 
-                                        keyword_ident(toks->data.keyword), 
+                                        keyword_string(toks->data.keyword), 
                                         toks->data.keyword, toks->data.keyword);
                 } else if (toks->type == TOKEN_NUMBER) {
                         fprintf(logs, html(#ca6f1e, "number") "  | %lg\n", toks->data.number);
