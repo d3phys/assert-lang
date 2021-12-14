@@ -1,0 +1,51 @@
+/* 
+ * 'assert' language keywords 
+ * This file is used by assert lexer.
+ *
+ * They are separated into 2 parts:
+ *
+ * 'linkable' -- can be a part of the identifier 
+ * 'unlinkable' -- can't be a part of the identifier 
+ */
+
+LINKABLE(
+KEYWORD(ELSE, 'e', "else")
+KEYWORD(IF, 'i', "if")
+KEYWORD(WHILE, 'w', "while")
+KEYWORD(RETURN, 'r', "return")
+KEYWORD(CONST, 'c', "invariant")
+KEYWORD(DEFINE, 'f', "dump")
+KEYWORD(ASSERT, 'a', "assert")
+KEYWORD(COS, 0x10001, "cos")
+KEYWORD(SIN, 0x10002, "sin")
+)
+
+UNLINKABLE (
+KEYWORD(NULL, 0, "null")
+KEYWORD(STOP, '$', "$")
+KEYWORD(ELLIPSIS, '3', "...")
+KEYWORD(EQUAL, 'q', "==")
+KEYWORD(LEQUAL, 'l', "<=")
+KEYWORD(GEQUAL, 'g', ">=")
+KEYWORD(NEQUAL, '!', "!=")
+KEYWORD(ASSIGN, '=', "=")
+KEYWORD(GREAT, '>', ">")
+KEYWORD(LOW, '<', "<")
+KEYWORD(AND, '&', "&&")
+KEYWORD(OR, '|', "||")
+KEYWORD(ADD, '+', "+")
+KEYWORD(SUB, '-', "-")
+KEYWORD(DIV, '/', "/")
+KEYWORD(MUL, '*', "*")
+KEYWORD(POW, '^', "^")
+KEYWORD(BEGIN, '{', "{")
+KEYWORD(END, '}', "}")
+KEYWORD(QOPEN, '[', "[")
+KEYWORD(QCLOSE, ']', "]")
+KEYWORD(SEMICOL, ';', ";")
+KEYWORD(COMMA, ',', ",")
+KEYWORD(OPEN, '(', "(")
+KEYWORD(CLOSE, ')', ")")
+)
+
+

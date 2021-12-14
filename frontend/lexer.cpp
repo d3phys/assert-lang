@@ -31,8 +31,16 @@ token *tokenize(const char *str, array *const idents)
 
         const char *start = str;
 
+        bool comment = false;
         while (*str != '\0') {
-                
+                if (*str == '#')
+                        comment = !comment;
+
+                if (comment) {
+                        str++;
+                        continue;
+                }
+
                 if (isspace(*str)) {
                         if (start != str) {
                                 read_keyword(&tokens, start, 

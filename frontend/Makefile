@@ -14,20 +14,27 @@ include $(TOPDIR)/Rules.makefile
 ### Dependencies ###
 dump_tree.o: dump_tree.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
- /home/d3phys/Code/language/include/frontend/grammar.h
-ident.o: ident.cpp /home/d3phys/Code/language/include/frontend/grammar.h
+ /home/d3phys/Code/language/include/frontend/grammar.h \
+ /home/d3phys/Code/language/include/../KEYWORDS
+ident.o: ident.cpp /home/d3phys/Code/language/include/frontend/grammar.h \
+ /home/d3phys/Code/language/include/../KEYWORDS ../KEYWORDS
 lexer.o: lexer.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/list.h \
  /home/d3phys/Code/language/include/array.h \
  /home/d3phys/Code/language/include/frontend/token.h \
  /home/d3phys/Code/language/include/frontend/tree.h \
- /home/d3phys/Code/language/include/frontend/grammar.h
+ /home/d3phys/Code/language/include/frontend/grammar.h \
+ /home/d3phys/Code/language/include/../KEYWORDS ../KEYWORDS
 list.o: list.cpp /home/d3phys/Code/language/include/logs.h \
  /home/d3phys/Code/language/include/list.h
 recursive_descent.o: recursive_descent.cpp \
  /home/d3phys/Code/language/include/logs.h \
+ /home/d3phys/Code/language/include/frontend/grammar.h \
+ /home/d3phys/Code/language/include/../KEYWORDS \
  /home/d3phys/Code/language/include/frontend/tree.h \
  /home/d3phys/Code/language/include/frontend/token.h \
  /home/d3phys/Code/language/include/array.h
 tree.o: tree.cpp /home/d3phys/Code/language/include/logs.h \
- /home/d3phys/Code/language/include/frontend/tree.h
+ /home/d3phys/Code/language/include/frontend/tree.h \
+ /home/d3phys/Code/language/include/frontend/grammar.h \
+ /home/d3phys/Code/language/include/../KEYWORDS
