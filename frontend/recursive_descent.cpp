@@ -132,11 +132,6 @@ ast_node *grammar_rule(token **toks)
 {
         assert(toks);
 
-        /*
-        ast_node *root = create_ast_keyword(AST_STMT);
-        if (!root)
-                return core_error();
-                */
         ast_node *root = nullptr;
 
         while (keyword(*toks) == KW_DEFINE || 
@@ -203,42 +198,83 @@ ast_node *assign_rule(token **toks)
         }
 
         if (keyword(next(toks)) == KW_QOPEN) {
-                root->left = array_rule(toks);
-                if (!root->left)
+                ast_node *variable = array_rule(toks);
+                if (!variable)
                         return syntax_error(toks);
 
-                root->left->left = constant; 
+                variable->left = constant; 
+                root->left = variable;
 
                 require(KW_ASSIGN);
+
+                if (keyword(*toks) != KW_BEGIN) {
+                        root->right = expression_rule(toks);
+                        if (!root->right)
+                                return syntax_error(toks);
+
+                        return root;
+                }
+
                 require(KW_BEGIN);
 
-                root->right = create_ast_keyword(AST_INIT);
+                const char *ident = ast_ident (variable);
+                const size_t size = ast_number(variable->right);
+
+                if (keyword(*toks) == KW_END) { 
+                        require(KW_END);
+                        root->right = expression_rule(toks);
+                        if (!root->right)
+                                return syntax_error(toks);
+
+                        return root;
+                }
+
+                ast_node *stmt = create_ast_keyword(AST_STMT);
+                if (!stmt)
+                        return core_error(toks);
+
+                stmt->right = root;
+                root->right = create_ast_number(0);
                 if (!root->right)
                         return core_error(toks);
 
-                root->right->right = expression_rule(toks);
-                if (!root->right->right)
-                        return syntax_error(toks);
+                root = stmt;
+                size_t shift = 0;
+                do {
+                        if (shift)
+                                require(KW_COMMA);
 
-                while (keyword(*toks) == KW_COMMA) {
-                        require(KW_COMMA);
-
-                        ast_node *init = create_ast_keyword(AST_INIT);
-                        if (!init)
+                        stmt = create_ast_keyword(AST_STMT);
+                        if (!stmt)
                                 return core_error(toks);
 
-                        init->right = expression_rule(toks);
-                        if (!init->right)
+                        ast_node *assign = create_ast_keyword(AST_ASSIGN);
+                        if (!assign)
+                                return core_error(toks);
+
+                        stmt->right = assign;
+
+                        assign->right = expression_rule(toks);
+                        if (!assign->right)
                                 return syntax_error(toks);
 
-                        init->left = root->right;
-                        root->right = init;
-                }
+                        assign->left = create_ast_ident(ident);
+                        if (!assign->left)
+                                return core_error(toks);
+
+                        assign->left->right = create_ast_number((double)shift++);
+                        if (!assign->left->right)
+                                return core_error(toks);
+
+                        stmt->left = root;
+                        root = stmt;
+
+                } while (keyword(*toks) == KW_COMMA);
 
                 require(KW_END);
-
                 return root;
         }
+
 
         root->left = ident_rule(toks);
         if (!root->left)
@@ -247,12 +283,8 @@ ast_node *assign_rule(token **toks)
         root->left->left = constant; 
         require(KW_ASSIGN);
 
-        root->right = create_ast_keyword(AST_INIT);
+        root->right = expression_rule(toks);
         if (!root->right)
-                return core_error(toks);
-
-        root->right->right = expression_rule(toks);
-        if (!root->right->right)
                 return syntax_error(toks);
 
         return root;
@@ -315,19 +347,11 @@ ast_node *block_rule(token **toks)
 {
         assert(toks);
 
-        ast_node *root = create_ast_keyword(AST_STMT);
-        if (!root) 
-                return core_error(toks);
-
+        ast_node *root = nullptr;
         if (keyword(*toks) == KW_BEGIN) {
                 move(toks);
 
-                root->right = statement_rule(toks);
-                if (!root->right) 
-                        return syntax_error(toks);
-
-                while (keyword(*toks) != KW_END) {
-
+                do {
                         ast_node *stmt = create_ast_keyword(AST_STMT);
                         if (!stmt) 
                                 return core_error(toks);
@@ -336,14 +360,30 @@ ast_node *block_rule(token **toks)
                         if (!stmt->right) 
                                 return syntax_error(toks);
 
+                        if (ast_keyword(stmt->right) == AST_STMT) {
+                                ast_node *last = stmt->right;
+                                while (last->left)
+                                        last = last->left;
+
+                                last->left = root;
+                                root = stmt->right;
+                                free(stmt);
+                                continue;
+                        }
+
                         stmt->left = root;
                         root = stmt;
-                }
+
+                } while (keyword(*toks) != KW_END);
 
                 move(toks);
 
                 return root;
         }
+
+        root = create_ast_keyword(AST_STMT);
+        if (!root) 
+                return core_error(toks);
 
         root->right = statement_rule(toks);
         if (!root->right) 
