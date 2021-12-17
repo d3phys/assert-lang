@@ -50,7 +50,7 @@ ast_node *create_ast_node(int type);
 ast_node *copy_tree(ast_node *n);
 
 void save_ast_tree(FILE *file, ast_node *const tree);
-ast_node *read_ast_tree(FILE *file, array *const idents);
+ast_node *read_ast_tree(char **str, array *const idents);
 
 size_t calc_tree_size(ast_node *n);
 ast_node *compare_trees(ast_node *t1, ast_node *t2);

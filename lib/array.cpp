@@ -85,6 +85,27 @@ void *array_push(array *const arr, void *item, size_t item_size)
         return (char *)data + item_size * arr->size++;
 }
 
+void *array_top(array *const arr, size_t item_size)
+{
+        assert(arr);
+
+        if (validate_size(arr, item_size))
+                return nullptr;
+
+        return (char *)arr->data + item_size * arr->size;
+}
+
+void array_pop(array *const arr, size_t item_size)
+{
+        assert(arr);
+        assert(item_size);
+
+        if (validate_size(arr, item_size))
+                return;
+
+        item_size--;
+}
+
 void *array_create(array *const arr, size_t item_size)
 {
         assert(arr);
