@@ -51,11 +51,13 @@ ast_node     *assign_rule(token **toks);
 ast_node     *define_rule(token **toks);
 ast_node      *block_rule(token **toks);
 ast_node  *statement_rule(token **toks);
-ast_node  *condition_rule(token **toks);
+//ast_node  *condition_rule(token **toks);
 ast_node *expression_rule(token **toks);
 ast_node   *additive_rule(token **toks);
 ast_node     *factor_rule(token **toks);
 ast_node   *exponent_rule(token **toks);
+ast_node    *boolean_rule(token **toks);
+ast_node    *logical_rule(token **toks);
 
 ast_node         *if_rule(token **toks);
 ast_node      *while_rule(token **toks);
@@ -165,6 +167,7 @@ ast_node *grammar_rule(token **toks)
 
         return root;
 }
+
 
 ast_node *assign_rule(token **toks)
 {
@@ -321,7 +324,7 @@ ast_node *if_rule(token **toks)
 
         require(KW_OPEN);
 
-        root->left = condition_rule(toks);
+        root->left = expression_rule(toks);
         if (!root->left) 
                 return syntax_error(toks);
 
@@ -353,7 +356,7 @@ ast_node *while_rule(token **toks)
         if (!root) 
                 return core_error(toks);
 
-        root->left = condition_rule(toks);
+        root->left = expression_rule(toks);
         if (!root->left) 
                 return syntax_error(toks);
 
@@ -424,6 +427,7 @@ ast_node *statement_rule(token **toks)
         return nullptr;
 }
 
+/*
 ast_node *condition_rule(token **toks)
 {
         assert(toks);
@@ -433,6 +437,8 @@ ast_node *condition_rule(token **toks)
                 return core_error(toks);
 
         root->left = expression_rule(toks); 
+        fprintf(logs, html(red, "root->left: %p\n"), root->left);
+        dump_tree(root->left);
         if (!root->left) 
                 return syntax_error(toks);
 
@@ -456,7 +462,7 @@ ast_node *condition_rule(token **toks)
                         set_ast_keyword(root, AST_LEQUAL); 
                         break;
                 default: 
-                        return root;
+                        return root->left;
         }
 
         move(toks);
@@ -466,15 +472,16 @@ ast_node *condition_rule(token **toks)
                 return syntax_error(toks);
 
         return root;
-}
+} 
+*/
 
-
-ast_node *expression_rule(token **toks)
+ast_node *boolean_rule(token **toks)
 {
         assert(toks);
 
         ast_node *root = nullptr;
 
+        /*
         if (keyword(*toks) == KW_ADD || 
             keyword(*toks) == KW_SUB) 
         {
@@ -508,6 +515,11 @@ ast_node *expression_rule(token **toks)
                 if (!root) 
                         return syntax_error(toks);
         }
+        */
+
+        root = additive_rule(toks);
+        if (!root) 
+                return syntax_error(toks);
 
         while (keyword(*toks) == KW_ADD ||
                keyword(*toks) == KW_SUB) {
@@ -531,6 +543,90 @@ ast_node *expression_rule(token **toks)
                 move(toks);
 
                 op->right = additive_rule(toks);
+                if (!op->right) 
+                        return core_error(toks);
+
+                op->left = root;
+                root = op;
+        }
+
+        return root;
+}
+
+ast_node *logical_rule(token **toks)
+{ 
+        assert(toks);
+
+        ast_node *root = create_ast_node(AST_NODE_KEYWORD);
+        if (!root) 
+                return core_error(toks);
+
+        root->left = boolean_rule(toks); 
+        if (!root->left) 
+                return syntax_error(toks);
+
+        switch (keyword(*toks)) {
+                case KW_LOW:    
+                        set_ast_keyword(root, AST_LOW);    
+                        break;
+                case KW_EQUAL:  
+                        set_ast_keyword(root, AST_EQUAL);  
+                        break;
+                case KW_GREAT:  
+                        set_ast_keyword(root, AST_GREAT);  
+                        break;
+                case KW_NEQUAL: 
+                        set_ast_keyword(root, AST_NEQUAL); 
+                        break;
+                case KW_GEQUAL: 
+                        set_ast_keyword(root, AST_GEQUAL); 
+                        break;
+                case KW_LEQUAL: 
+                        set_ast_keyword(root, AST_LEQUAL); 
+                        break;
+                default: 
+                        return root->left;
+        }
+
+        move(toks);
+
+        root->right = boolean_rule(toks); 
+        if (!root->right) 
+                return syntax_error(toks);
+
+        return root;
+}
+
+ast_node *expression_rule(token **toks)
+{ 
+        assert(toks);
+
+        ast_node *root = logical_rule(toks);
+        if (!root) 
+                return syntax_error(toks);
+
+        while (keyword(*toks) == KW_OR ||
+               keyword(*toks) == KW_AND) {
+
+                ast_node *op = create_ast_node(AST_NODE_KEYWORD);
+                if (!root) 
+                        return core_error(toks);
+
+                switch (keyword(*toks)) {
+                case KW_OR: 
+                        set_ast_keyword(op, AST_OR); 
+                        break;
+                case KW_AND: 
+                        set_ast_keyword(op, AST_AND); 
+                        break;
+                default: 
+                        assert(0); 
+                        break;
+                }
+
+                move(toks);
+
+                op->right = logical_rule(toks);
                 if (!op->right) 
                         return core_error(toks);
 
@@ -722,6 +818,30 @@ ast_node *exponent_rule(token **toks)
                 return core_error(toks);
 
         switch (keyword(*toks)) {
+        case KW_NOT:
+                set_ast_keyword(root, AST_NOT);
+                move(toks);
+                root->right = exponent_rule(toks);
+                if (!root->right)
+                        return syntax_error(toks);
+
+                return root;
+        case KW_ADD:
+                move(toks);
+                /* free root */
+                root = exponent_rule(toks);
+                if (!root)
+                        return syntax_error(toks);
+                return root;
+        case KW_SUB:
+                set_ast_keyword(root, AST_SUB);
+                move(toks);
+                root->left = create_ast_number(0);
+                root->right = exponent_rule(toks);
+                if (!root->right)
+                        return syntax_error(toks);
+
+                return root;
         case KW_SIN:
                 set_ast_keyword(root, AST_SIN);
                 break;

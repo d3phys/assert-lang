@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
         array names = {0};
 
         token *toks = tokenize(md.buf, &names);
+        dump_tokens(toks);
         fprintf(stderr, ascii(blue, "Tokens created --- %s\n"), local_time("%H:%M:%S"));
         mmap_free(&md);
 
@@ -57,11 +58,11 @@ $       (dump_array(&names, sizeof(char *), array_string);)
                 return EXIT_FAILURE;
         }
 
-//        $(dump_tree(tree);)
+        if (tree)
+                $(dump_tree(tree);)
 
         save_ast_tree(out, tree);
         fprintf(stderr, ascii(blue, "Tree saved     --- %s\n"), local_time("%H:%M:%S"));
-//        free_tree(tree);
         free(toks);
 
         char **data = (char **)names.data;
