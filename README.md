@@ -1,5 +1,5 @@
 <p align="center">
-     <img src="resources//logo.png" alt="Logo" width="150"/>
+     <img src="resources//logo.png" alt="Logo" width="300"/>
 </p>
 
 # Assert language 
