@@ -5,6 +5,7 @@
 #include <array.h>
 #include <errno.h>
 #include <iommap.h>
+#include <time.h>
 
 #include <ast/tree.h>
 #include <frontend/token.h>
@@ -25,6 +26,8 @@ int main(int argc, char *argv[])
         if (!out)
                 return file_error(tree_file);
 
+        clock_t init = clock();
+        clock_t start = clock();
         mmap_data md = {0};
         int error = mmap_in(&md, src_file);
         if (error)
@@ -34,7 +37,9 @@ int main(int argc, char *argv[])
 
         token *toks = tokenize(md.buf, &names);
         dump_tokens(toks);
-        fprintf(stderr, ascii(blue, "Tokens created --- %s\n"), local_time("%H:%M:%S"));
+
+        clock_t end = clock();
+        fprintf(stderr, ascii(blue, "Tokens created: %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
         mmap_free(&md);
 
 $       (dump_tokens(toks);)
@@ -42,7 +47,8 @@ $       (dump_array(&names, sizeof(char *), array_string);)
 
         token *iter = toks;
         ast_node *tree = grammar_rule(&iter);
-        fprintf(stderr, ascii(blue, "Tree created   --- %s\n"), local_time("%H:%M:%S"));
+        start = clock();
+        fprintf(stderr, ascii(blue, "Tree created:   %lf sec\n"), (start - end) / CLOCKS_PER_SEC);
 
         if (!tree) {
                 free(toks);
@@ -63,7 +69,9 @@ $       (dump_array(&names, sizeof(char *), array_string);)
         }
 
         save_ast_tree(out, tree);
-        fprintf(stderr, ascii(blue, "Tree saved     --- %s\n"), local_time("%H:%M:%S"));
+
+        end = clock();
+        fprintf(stderr, ascii(blue, "Tree saved:     %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
         free(toks);
 
         char **data = (char **)names.data;
@@ -74,7 +82,8 @@ $       (dump_array(&names, sizeof(char *), array_string);)
         free_array(&names, sizeof(char *));
         fclose(out);
 
-        fprintf(stderr, ascii(green, "Abstract syntax tree compiled --- %s\n"), local_time("%x %H:%M:%S"));
+        end = clock();
+        fprintf(stderr, ascii(green, "Abstract syntax tree compiled: %lf sec\n"), (end - init) / CLOCKS_PER_SEC);
         return EXIT_SUCCESS;
 }
 

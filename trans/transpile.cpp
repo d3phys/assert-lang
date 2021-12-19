@@ -6,6 +6,7 @@
 #include <ast/tree.h>
 #include <ast/keyword.h>
 #include <frontend/keyword.h>
+#include <trans/transpile.h>
 
 static int INDENT = 0;
 static int INDENT_SPACES = 8;
@@ -40,7 +41,6 @@ static double    *number(ast_node *root);
 static const char *ident(ast_node *root);
 
 static ast_node *trans_define(FILE *file, ast_node *root);
-static ast_node *trans_stmt(FILE *file, ast_node *root);
 static ast_node *trans_while(FILE *file, ast_node *root);
 static ast_node *trans_if(FILE *file, ast_node *root);
 static ast_node *trans_define_param(FILE *file, ast_node *root);
@@ -242,6 +242,7 @@ static ast_node *trans_if(FILE *file, ast_node *root)
         ast_node *decision = root->right;
         require(decision, AST_DECISN);
 
+        require(decision->left, AST_STMT);
         write("%s\n", keyword_string(KW_BEGIN));
 
         indent();
@@ -321,7 +322,7 @@ static ast_node *trans_return(FILE *file, ast_node *root)
         return success(root);
 }
 
-static ast_node *trans_stmt(FILE *file, ast_node *root)
+ast_node *trans_stmt(FILE *file, ast_node *root)
 {
         assert(file);
         assert(root);
@@ -451,6 +452,41 @@ static ast_node *trans_expr(FILE *file, ast_node *root)
                 return success(root);
         }
 
+        int op = 0;
+        switch (keyword(root)) {
+        case AST_SIN:
+                op = KW_SIN;
+        case AST_COS:
+                op = KW_COS;
+        case AST_INT:
+                op = KW_INT;
+        default:
+                break;
+        }
+
+        if (op) {
+                write("%s", keyword_string(op));
+                write("%s", keyword_string(KW_OPEN));
+
+                error = trans_expr(file, root->right);
+                if (error)
+                        return error;
+
+                write("%s", keyword_string(KW_CLOSE));
+                return success(root);
+        }
+
+        if (keyword(root) == AST_IN) {
+                write("%s", keyword_string(KW_IN));
+                write("%s", keyword_string(KW_OPEN));
+
+                if (root->left || root->right)
+                        return trans_error(root);
+
+                write("%s", keyword_string(KW_CLOSE));
+                return success(root);
+        }
+
         write("%s", keyword_string(KW_OPEN));
 
         if (root->left) {
@@ -466,15 +502,12 @@ static ast_node *trans_expr(FILE *file, ast_node *root)
 
         switch (keyword(root)) {
                 TRANS(AST_OR, KW_OR);
-                TRANS(AST_IN, KW_IN);
                 TRANS(AST_ADD, KW_ADD);
                 TRANS(AST_SUB, KW_SUB);
                 TRANS(AST_MUL, KW_MUL);
                 TRANS(AST_DIV, KW_DIV);
                 TRANS(AST_POW, KW_POW);
                 TRANS(AST_LOW, KW_LOW);
-                TRANS(AST_SIN, KW_SIN);
-                TRANS(AST_COS, KW_COS);
                 TRANS(AST_NOT, KW_NOT);
                 TRANS(AST_AND, KW_AND);
                 TRANS(AST_INT, KW_INT);
@@ -496,38 +529,6 @@ static ast_node *trans_expr(FILE *file, ast_node *root)
 
         write("%s", keyword_string(KW_CLOSE));
         return success(root);
-}
-
-int main()
-{
-        printf("hello world\n");
-        FILE *code = fopen("asrt", "w");
-
-        mmap_data md = {0};
-        int error = mmap_in(&md, "tree"); 
-        if (error)
-                return EXIT_FAILURE;
-
-        array idents = {0};
-
-        char *r = md.buf;
-        ast_node *tree = read_ast_tree(&r, &idents);
-        if (tree) {
-                dump_tree(tree);
-                dump_array(&idents, sizeof(char *), array_string);
-        }
-
-        mmap_free(&md);
-
-        trans_stmt(stderr, tree);
-
-        char **data = (char **)idents.data;
-        for (size_t i = 0; i < idents.size; i++) {
-                free(data[i]);
-        }
-
-        free_array(&idents, sizeof(char *));
-        return 0;
 }
 
 static int keyword(ast_node *root)

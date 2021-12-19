@@ -94,6 +94,7 @@ int mmap_in(mmap_data *const data, const char *file)
 
         if (fsz == 0) {
                 fprintf(stderr, "File is empty: %s\n", file);
+                errno = 1;
                 goto cleanup;
         }
 

@@ -8,6 +8,7 @@
 #include <ast/tree.h>
 #include <ast/keyword.h>
 #include <backend/scope_table.h>
+#include <backend/backend.h>
 
 struct symbol_table {
         scope_table *local  = nullptr;
@@ -94,7 +95,6 @@ static ast_node *compile_if    (ast_node *root, symbol_table *table);
 static ast_node *compile_while (ast_node *root, symbol_table *table);
 static ast_node *compile_call  (ast_node *root, symbol_table *table);
 
-//static ast_node *compile_variable  (ast_node *root, symbol_table *table);
 static ast_node *main_branch_assign(ast_node *root, symbol_table *table);
 static ast_node *declare_function_variable(ast_node *root, symbol_table *table);
 
@@ -102,9 +102,50 @@ static func_info *find_function  (ast_node *call, array *const func_table);
 static ast_node *declare_function (ast_node *root, array *const func_table);
 static ast_node *create_func_table(ast_node *root, array *const func_table);
 
-static ast_node *create_global_table(ast_node *root, scope_table *table);
+static ast_node *create_global_table(ast_node *root, symbol_table *table);
 static ast_node *create_local_table (ast_node *root, symbol_table *table);
 
+int compile_tree(FILE *output, ast_node *tree)
+{
+        assert(output);
+        assert(tree);
+
+        int ret = EXIT_SUCCESS;
+        file = output;
+
+        array func_table = {0};
+        array global     = {0};
+        scope_table gst  = {0};
+
+        gst.entries  = &global;
+
+        create_func_table(tree, &func_table);
+        dump_array(&func_table, sizeof(func_info), dump_array_function);
+
+        symbol_table tab = {0};
+        tab.func   = &func_table;
+        tab.local  = &gst;
+        tab.global = &gst;
+
+        create_global_table(tree, &tab);
+
+        PUSH(number_str(tab.global->shift));
+        PUSH(LOCAL_REG);
+        ADD();
+        POP(LOCAL_REG);
+        CALL("main\n\n");
+        HLT();
+
+        ast_node *err = compile_define(tree, &tab);
+        if (err) {
+               ret = EXIT_FAILURE; 
+        }
+
+        free_array(&func_table, sizeof(func_info));
+        free_array(gst.entries, sizeof(var_info));
+
+        return ret;
+}
 
 static ast_node *compile_return(ast_node *root, symbol_table *table)
 {
@@ -195,20 +236,6 @@ $$
 $$
         return success(root);
 }
-
-/*
-static ast_node *condition_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(table);
-        ast_node *error = nullptr;
-$$
-        WRITE("; CONDITION");
-$$
-
-        return success(root);
-}
-*/
 
 static ast_node *compile_while(ast_node *root, symbol_table *table)
 {
@@ -678,90 +705,6 @@ $$
         return declare_function(root->right, func_table);
 }
 
-int main()
-{
-        file = fopen("compiled", "w");
-        if (!file) {
-                fprintf(stderr, "Fail\n");
-                return EXIT_FAILURE;
-        }
-
-        mmap_data md = {0};
-        int error = mmap_in(&md, "tree"); 
-        if (error)
-                return EXIT_FAILURE;
-
-        array idents = {0};
-
-        char *r = md.buf;
-        ast_node *rt = read_ast_tree(&r, &idents);
-        if (rt) {
-                dump_tree(rt);
-                dump_array(&idents, sizeof(char *), array_string);
-        }
-
-        mmap_free(&md);
-
-        scope_table gst = {0};
-        array g = {0};
-
-        scope_table lst = {0};
-        array l = {0};
-
-        gst.entries = &g;
-        lst.entries = &l;
-
-        array func_table = {0};
-        create_func_table(rt, &func_table);
-        dump_array(&func_table, sizeof(func_info), dump_array_function);
-
-        symbol_table tab = {0};
-        tab.func = &func_table;
-        tab.local = &gst;
-        tab.global = &gst;
-
-        create_global_table(rt, &tab);
-        dump_array(tab.global->entries, sizeof(var_info), dump_array_var_info);
-        dump_array(lst.entries, sizeof(var_info), dump_array_var_info);
-
-        fprintf(logs, html(red, bold(":FJSD:OFJS:FHSd;kgjasd;gasg;oiasjgoisaijeg;aisjeg\n")));
-        PUSH(number_str(tab.global->shift));
-        PUSH(LOCAL_REG);
-        ADD();
-        POP(LOCAL_REG);
-        CALL("main\n\n");
-        HLT();
-        compile_define(rt, &tab);
-        dump_array(lst.entries, sizeof(var_info), dump_array_var_info);
-
-
-        //declare_func(rt->right, &func_table);
-        /*
-        main_brunch_assign(rt, &func_table, &gst);
-        dump_array(gst.entries, sizeof(var_info), dump_array_var_info);
-
-        fprintf(logs, html(red, "OMGOD\n"));
-        define_functions(rt, &func_table, &gst);
-        //define_function_rule(rt->left->left->left->right, &func_table, &lst, &gst);
-        //dump_array(lst.entries, sizeof(var_info), dump_array_var_info);
-
-        //PUSH(create_variable(rt->left->left->left->right->left, &st, &st));
-        //POP(find_variable(rt->left->left->left->right->left, &st, &st));
-        //PUSH(create_variable(rt->left->left->right->left, &st, &st));
-
-        */
-        free_array(&func_table, sizeof(func_info));
-        free_array(gst.entries, sizeof(var_info));
-
-        char **data = (char **)idents.data;
-        for (size_t i = 0; i < idents.size; i++) {
-                free(data[i]);
-        }
-
-        free_array(&idents, sizeof(char *));
-
-        return EXIT_SUCCESS;
-}
 
 static ast_node *syntax_error(ast_node *root)
 {
