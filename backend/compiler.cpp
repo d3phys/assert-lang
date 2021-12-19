@@ -21,6 +21,8 @@ struct func_info {
         size_t n_params   = 0;
 };
 
+static FILE *file = nullptr;
+
 static const size_t BUFSIZE = 128;
 static char BUFFER[BUFSIZE] = {0};
 
@@ -100,451 +102,6 @@ static ast_node *create_func_table(ast_node *root, array *const func_table);
 static ast_node *create_global_table(ast_node *root, scope_table *table);
 static ast_node *create_local_table (ast_node *root, symbol_table *table);
 
-/*
---------------------------------------------------------------------static ast_node *define_functions(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-$$
-        if (root->left) {
-$$
-                error = define_functions(root->left, func_table, global_table);
-$$
-                if (error) {
-$$
-                        return error;
-                }
-        }
-$$
-        if (!root->right)
-                return syntax_error(root);
-$$
-
-        if (root->right->type != AST_NODE_KEYWORD || 
-            ast_keyword(root->right) != AST_DEFINE)
-                return success(root);
-$$
-
-        scope_table st = {0};
-        array entries  = {0};
-        st.entries = &entries;
-$$
-
-        error = define_function_rule(root->right, func_table, &st, global_table);
-        if (!error)
-                dump_array(&entries, sizeof(var_info), dump_array_var_info);
-
-        free_array(&entries, sizeof(var_info));
-        return error;
-}
-
-static ast_node *define_function_rule(ast_node *root, symbol_table *table) 
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        $$
-        require(root, AST_DEFINE);
-
-        WRITE(";DEFINE FUNCTION\n");
-        $$
-        func_info *func = find_function(root->left->left, func_table);
-        $$
-        if (!func)
-                return syntax_error(root);
-
-        $$
-        WRITE("\n\n");
-        LABEL(func->ident);
-        if (root->left && root->left->right) {
-        $$
-                error = declare_function_variable(root->left->right, 
-                                                  local_table, global_table);
-        $$
-                if (error)
-                        return error;
-        }
-        $$
-
-        if (!root->right)
-                return syntax_error(root);
-        $$
-
-        error = statement_rule(root->right, func_table, local_table, global_table);
-        $$
-        if (error)
-                return error;
-
-        $$
-        return success(root);
-}
-
-static ast_node *return_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        require(root, AST_RETURN);
-        error = expression_rule(root->right, func_table, local_table, global_table);
-        if (error)
-                return error;
-
-        POP(RETURN_REG);
-        RET();
-        return success(root);
-}
-
-static ast_node *if_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        require(root, AST_IF);
-
-        WRITE("; IF");
-
-        return success(root);
-}
-
-static ast_node *condition_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-
-        WRITE("; CONDITION");
-
-
-        return success(root);
-}
-
-static ast_node *while_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        require(root, AST_WHILE);
-        WRITE("; WHILE");
-
-        LABEL(id("while", root));
-        if (!root->left)
-                return syntax_error(root);
-
-        error = condition_rule(root->left, func_table, local_table, global_table);
-        if (error)
-                return error;
-
-        PUSH("0");
-        JE(id("while_end", root));
-
-        error = statement_rule(root->right, func_table, local_table, global_table);
-        if (error)
-                return error;
-
-        JMP(id("while", root));
-        LABEL(id("while_end", root));
-
-        return success(root);
-}
-
-
---------------------------------------------------static ast_node *statement_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-$$
-        require(root, AST_STMT);
-$$
-        if (root->left) {
-$$
-                error = statement_rule(root->left, func_table, 
-                                      local_table, global_table);
-$$
-                if (error)
-                        return error;
-        }
-$$
-
-        if (!root->right || root->right->type != AST_NODE_KEYWORD)
-                return syntax_error(root);
-$$
-        switch (ast_keyword(root->right)) {
-        case AST_ASSIGN:
-$$
-                return assign_rule(root->right, func_table, 
-                                   local_table, global_table);
-        case AST_IF:
-$$
-                return if_rule(root->right, func_table, 
-                               local_table, global_table);
-        case AST_WHILE:
-$$
-                return while_rule(root->right, func_table, 
-                                  local_table, global_table);
-        case AST_CALL:
-$$
-                return call_rule(root->right, func_table, 
-                                 local_table, global_table);
-        case AST_RETURN:
-$$
-                return return_rule(root->right, func_table, 
-                                   local_table, global_table);
-        default:
-                return syntax_error(root);
-        }
-}
-
--------------------------------------------static ast_node *declare_function_variable(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        require(root, AST_PARAM);
-        if (root->left) {
-                error = declare_function_variable(root->left, local_table, global_table);
-                if (error)
-                        return error;
-        }
-
-        const char *ident = create_variable(root->right, 
-                                            local_table, global_table);
-        if (!ident)
-                return syntax_error(root);
-
-        return success(root);
-}
-
-
-------------------------static ast_node *assign_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        $$
-        require(root, AST_ASSIGN);
-        error = expression_rule(root->right, func_table, 
-                                local_table, global_table);
-        if (error)
-                return error;
-
-        $$
-        require_ident(root->left);
-        const char *ident = get_variable(root->left, local_table, global_table);
-        if (!ident)
-                return syntax_error(root);
-        $$
-
-        POP(ident);
-        $$
-        return success(root);
-}
-
-----------------------------------static ast_node *param_rule(ast_node *root, symbol_table *table, 
-                            ptrdiff_t shift = 0)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-
-        ast_node *error = nullptr;
-        if (root->left) {
-                error = param_rule(root->left, func_table, 
-                                   local_table, global_table, args - 1);
-                if (error)
-                        return error;
-        }
-
-        PUSH(";PARAM");
-        error = expression_rule(root->right, func_table, local_table, global_table);
-        if (error)
-                return error;
-
-        POP(memory(LOCAL_REG, args));
-
-        return success(root);
-}
-
---------------------static ast_node *call_rule(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        assert(local_table);
-        assert(global_table);
-        ast_node *error = nullptr;
-
-        require(root, AST_CALL);
-        func_info *func = find_function(root->left, func_table);
-        if (!func)
-                return syntax_error(root);
-
-        WRITE("; call func ");
-        WRITE(func->ident);
-
-        size_t n_params = 0;
-        ast_node *param = root->right;
-        while (param) {
-                param = param->left;
-                n_params++;
-        }
-
-        if (func->n_params != n_params)
-                return syntax_error(root);
-
-        if (root->right) {
-                error = param_rule(root->right, func_table, local_table, 
-                                   global_table, func->n_params - 1 + local_table->shift);
-                if (error)
-                        return error;
-        }
-
-        PUSH(LOCAL_REG);
-        PUSH(number_str(local_table->shift));
-        ADD();
-        POP(LOCAL_REG);
-
-        CALL(func->ident);
-
-        PUSH(LOCAL_REG);
-        PUSH(number_str(local_table->shift));
-        SUB();
-        POP(LOCAL_REG);
-
-        return success(root);
-}
-
----------------------------------static ast_node *expression_rule(ast_node *root, symbol_table *table) 
-{
-        assert(root);
-        assert(func_table);
-        ast_node *error = nullptr;
-
-$$
-        if (root->type == AST_NODE_KEYWORD && ast_keyword(root) == AST_CALL)
-                return call_rule(root, func_table, local_table, global_table);
-$$
-        if (root->left) {
-                error = expression_rule(root->left, func_table, 
-                                        local_table, global_table);
-                if (error)
-                        return error;
-        }
-$$
-
-        if (root->right) {
-                error = expression_rule(root->right, func_table, 
-                                        local_table, global_table);
-                if (error)
-                        return error;
-        }
-$$
-
-        const char *ident = nullptr;
-        switch (root->type) {
-        case AST_NODE_NUMBER:
-                PUSH(number_str(ast_number(root)));
-                return success(root);
-        case AST_NODE_IDENT:
-                ident = find_variable(root, local_table, global_table);
-                if (!ident)
-                        return syntax_error(root);
-                PUSH(ident);
-                return success(root);
-        default:
-                break;
-        }
-        $$
-
-$$
-        switch (ast_keyword(root)) {
-        case AST_ADD:
-                ADD();
-                return success(root);
-        case AST_SUB:
-                SUB();
-                return success(root);
-        case AST_MUL:
-                MUL();
-                return success(root);
-        case AST_DIV:
-                DIV();
-                return success(root);
-        case AST_POW:
-                POW();
-                return success(root);
-        default:
-                break;
-        }
-
-        return syntax_error(root);
-}
-
-static ast_node *variable_rule(ast_node *root, symbol_table *table) 
-{
-        assert(root);
-        assert(func_table);
-
-        require_ident(root);
-        const char *ident = create_variable(root, local_table, global_table);
-        if (!ident)
-                return syntax_error(root);
-
-        POP(ident);
-
-        return success(root);
-}
-
-------------static ast_node *main_brunch_assign(ast_node *root, symbol_table *table)
-{
-        assert(root);
-        assert(func_table);
-        ast_node *error = nullptr;
-
-        require(root, AST_STMT);
-
-        $$
-        if (root->left) {
-                error = main_brunch_assign(root->left, func_table, global_table);
-                if (error)
-                        return error;
-        }
-
-        $$
-        if (keyword(root->right) != AST_ASSIGN)
-                return success(root); 
-
-        $$
-        error = assign_rule(root->right, func_table, global_table, global_table);
-        if (error)
-                return error;
-
-        return success(root);
-}
-*/
 
 static ast_node *compile_return(ast_node *root, symbol_table *table)
 {
@@ -559,7 +116,6 @@ $$
         if (error)
                 return error;
 $$
-
         POP(RETURN_REG);
         RET();
 $$
@@ -575,10 +131,48 @@ $$
         require(root, AST_IF);
 $$
         WRITE("; IF");
+
+        error = compile_expr(root->left, table);
+$$
+        if (error)
+                return error;
+
+        PUSH("0");
+        JE(id("if_fail", root));
+$$
+        ast_node *decision = root->right;
+        if (!decision)
+                return syntax_error(root);
+$$
+
+        if (!decision->left)
+                return syntax_error(root);
+
+$$
+        error = compile_stmt(decision->left, table);
+        if (error)
+                return error;
+$$
+
+        if (decision->right) {
+                JMP(id("if_end", root));
+                LABEL(id("if_fail", root));
+$$
+
+                error = compile_stmt(decision->right, table);
+$$
+                if (error)
+                        return error;
+
+                LABEL(id("if_end", root));
+        } else {
+                LABEL(id("if_fail", root));
+        }
 $$
         return success(root);
 }
 
+/*
 static ast_node *condition_rule(ast_node *root, symbol_table *table)
 {
         assert(root);
@@ -587,13 +181,10 @@ static ast_node *condition_rule(ast_node *root, symbol_table *table)
 $$
         WRITE("; CONDITION");
 $$
-        if (!root->left || !root->right)
-                return syntax_error(root);
 
-        //error = 
-        
         return success(root);
 }
+*/
 
 static ast_node *compile_while(ast_node *root, symbol_table *table)
 {
@@ -605,12 +196,13 @@ $$
 $$
         WRITE("; WHILE");
 
+        dump_array(table->local->entries, sizeof(var_info), dump_array_var_info);
         LABEL(id("while", root));
 $$
         if (!root->left)
                 return syntax_error(root);
 
-        error = condition_rule(root->left, table);
+        error = compile_expr(root->left, table);
 $$
         if (error)
                 return error;
@@ -662,10 +254,17 @@ $$
 $$
         require(define->left, AST_FUNC);
 $$
-        error = create_local_table(define->left->right, table);
+        if (define->left->right) {
+                error = create_local_table(define->left->right, table);
 $$
-        if (error)
-                return error;
+                if (error)
+                        return error;
+        }
+$$
+        ast_node *name = define->left->left;
+        require_ident(name);
+$$
+        LABEL(ast_ident(name));
 $$
         error = compile_stmt(define->right, table);
 $$
@@ -709,7 +308,20 @@ $$
         case AST_WHILE:
                 return compile_while(root->right, table);
         case AST_CALL:
-                return compile_call(root->right, table);
+                error = compile_call(root->right, table);
+                if (error)
+                        return error;
+                POP();
+                return success(root);
+        case AST_SHOW:
+                DSP();
+                return success(root);
+        case AST_OUT:
+                error = compile_expr(root->right->right, table);
+                if (error)
+                        return error;
+                SHW();
+                return success(root);
         case AST_RETURN:
                 return compile_return(root->right, table);
         default:
@@ -823,6 +435,7 @@ $$
 $$
 
         CALL(func->ident);
+        PUSH(RETURN_REG);
 $$
 
         PUSH(LOCAL_REG);
@@ -842,16 +455,18 @@ $$
         if (keyword(root) == AST_CALL)
                 return compile_call(root, table);
 $$
-        if (root->left) {
-                error = compile_expr(root->left, table);
-                if (error)
-                        return error;
-        }
+        if (keyword(root)) {
+                if (root->left) {
+                        error = compile_expr(root->left, table);
+                        if (error)
+                                return error;
+                }
 $$
-        if (root->right) {
-                error = compile_expr(root->right, table);
-                if (error)
-                        return error;
+                if (root->right) {
+                        error = compile_expr(root->right, table);
+                        if (error)
+                                return error;
+                }
         }
 $$
         const char *ident = nullptr;
@@ -889,11 +504,46 @@ $$
         case AST_POW:
                 POW();
                 return success(root);
+        case AST_EQUAL:
+                EQ();
+                return success(root);
+        case AST_NEQUAL:
+                NEQ();
+                return success(root);
+        case AST_GREAT:
+                AB();
+                return success(root);
+        case AST_LOW:
+                BE();
+                return success(root);
+        case AST_GEQUAL:
+                AEQ();
+                return success(root);
+        case AST_LEQUAL:
+                BEQ();
+                return success(root);
+        case AST_NOT:
+                NOT();
+                return success(root);
+        case AST_AND:
+                AND();
+                return success(root);
+        case AST_OR:
+                OR();
+                return success(root);
+        case AST_SIN:
+                SIN();
+                return success(root);
+        case AST_COS:
+                SIN();
+                return success(root);
+        case AST_IN:
+                IN();
+                return success(root);
         default:
                 break;
         }
 $$
-
         return syntax_error(root);
 }
 
@@ -1003,6 +653,12 @@ $$
 
 int main()
 {
+        file = fopen("compiled", "w");
+        if (!file) {
+                fprintf(stderr, "Fail\n");
+                return EXIT_FAILURE;
+        }
+
         mmap_data md = {0};
         int error = mmap_in(&md, "tree"); 
         if (error)
@@ -1042,6 +698,12 @@ int main()
         dump_array(lst.entries, sizeof(var_info), dump_array_var_info);
 
         fprintf(logs, html(red, bold(":FJSD:OFJS:FHSd;kgjasd;gasg;oiasjgoisaijeg;aisjeg\n")));
+        PUSH(number_str(tab.global->shift));
+        PUSH(LOCAL_REG);
+        ADD();
+        POP(LOCAL_REG);
+        CALL("main\n\n");
+        HLT();
         compile_define(rt, &tab);
         dump_array(lst.entries, sizeof(var_info), dump_array_var_info);
 
@@ -1062,7 +724,7 @@ int main()
 
         */
         free_array(&func_table, sizeof(func_info));
-        //free_array(gst.entries, sizeof(var_info));
+        free_array(gst.entries, sizeof(var_info));
 
         char **data = (char **)idents.data;
         for (size_t i = 0; i < idents.size; i++) {
@@ -1194,9 +856,9 @@ static inline ptrdiff_t get_shift(ast_node *variable)
         static inline void name(const char *arg)     \
         {                                            \
                 if (arg)                             \
-                        printf("%s %s\n", str, arg); \
+                        fprintf(file, "%s %s\n", str, arg); \
                 else                                 \
-                        printf("%s\n", str);         \
+                        fprintf(file, "%s\n", str);         \
         }
 
 #include <commands>
@@ -1205,13 +867,13 @@ static inline ptrdiff_t get_shift(ast_node *variable)
 static inline void LABEL(const char *arg)
 {
         assert(arg);
-        printf("%s:\n", arg);
+        fprintf(file, "%s:\n", arg);
 }
 
 static inline void WRITE(const char *arg)
 {
         assert(arg);
-        printf("%s\n", arg);
+        fprintf(file, "%s\n", arg);
 }
 
 static inline const char *id(const char *name, void *id)

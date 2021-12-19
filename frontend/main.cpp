@@ -58,8 +58,9 @@ $       (dump_array(&names, sizeof(char *), array_string);)
                 return EXIT_FAILURE;
         }
 
-        if (tree)
+        if (tree) {
                 $(dump_tree(tree);)
+        }
 
         save_ast_tree(out, tree);
         fprintf(stderr, ascii(blue, "Tree saved     --- %s\n"), local_time("%H:%M:%S"));

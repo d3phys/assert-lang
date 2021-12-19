@@ -92,7 +92,7 @@ void *array_top(array *const arr, size_t item_size)
         if (validate_size(arr, item_size))
                 return nullptr;
 
-        return (char *)arr->data + item_size * arr->size;
+        return (char *)arr->data + item_size * (arr->size - 1);
 }
 
 void array_pop(array *const arr, size_t item_size)
@@ -103,7 +103,7 @@ void array_pop(array *const arr, size_t item_size)
         if (validate_size(arr, item_size))
                 return;
 
-        item_size--;
+        arr->size--;
 }
 
 void *array_create(array *const arr, size_t item_size)
@@ -176,11 +176,21 @@ void dump_array(array *const arr, size_t item_size,
                       "| <b>Array %p dump</b>                          \n"
                       "================================================\n", arr);
 
-        for (size_t i = 0; i < arr->capacity; i++) {
+        for (size_t i = 0; i < arr->size; i++) {
                 fprintf(logs, "------------------------------------------------\n"
                               "| %-4lu | ", i);
 
                 fprintf(logs, "0x%-4x| ", i * item_size);
+                if (print) print(arr->data + i * item_size);
+                fprintf(logs, "\n");
+        }
+
+        for (size_t i = arr->size; i < arr->capacity; i++) {
+                fprintf(logs, "------------------------------------------------\n"
+                              "| %-4lu | ", i);
+
+                fprintf(logs, "0x%-4x| ", i * item_size);
+                fprintf(logs, html(brown, bold("BULLSHIT ")));
                 if (print) print(arr->data + i * item_size);
                 fprintf(logs, "\n");
         }
