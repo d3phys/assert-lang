@@ -1,0 +1,30 @@
+assert(R = 8);
+assert(inv R_STEP = 0.4);
+assert(inv SIZE = 20);
+assert(inv STEP = 0.1);
+
+dump draw_circle() {
+        assert(screen[399] = 0);
+        assert(phi = 0);
+
+        while (R > 0) {
+                assert(R = R - R_STEP);
+                while (phi < 6.28) {
+                        assert(x = int(R * cos(phi)));
+                        assert(y = int(R * sin(phi)));
+
+                        assert(screen[(y + SIZE/2) * SIZE + x + SIZE / 2] = 1);
+
+                        assert(phi = phi + STEP);
+                }
+                assert(phi = 0);
+        }
+
+        assert(show(screen[0], 400));
+        assert(return 0);
+}
+
+dump main() {
+        assert(draw_circle());
+        return 0;
+}

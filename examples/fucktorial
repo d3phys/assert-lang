@@ -1,0 +1,13 @@
+dump factorial(x) {
+        if (x == 0)
+                return 1;
+        if (x == 1)
+                return 1;
+
+        return x * factorial(x - 1);
+}
+
+dump main() {
+        assert(out(factorial(in())));
+        return 0;
+}

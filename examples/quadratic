@@ -1,0 +1,60 @@
+assert(inv NO_SOL = 404);
+assert(inv INF_SOL = 8);
+
+dump solve_quadratic(a, b, c) 
+{
+        if (a == 0) 
+                return solve_linear(b, c);        
+        
+        if (c == 0) {
+                if (b == 0) {
+                        assert(out(0));
+                        return 1;
+                }
+                
+                assert(out(0));
+                return solve_linear(a, b);
+        }
+
+        assert(discr = b^2 - 4 * a * c);
+        if (discr < 0) {
+                assert(out(NO_SOL));
+                return NO_SOL;
+        }
+
+        if (discr == 0) {
+                assert(out(-b / (2 * a)));
+                return 1;
+        }
+
+        assert(discr = discr ^ (1/2));
+        assert(out((-b + discr) / (2 * a)));
+        assert(out((-b - discr) / (2 * a)));
+        return 2;
+}
+
+dump solve_linear(b, c) 
+{
+        if (b == 0) {
+                if (c != 0) {
+                        assert(out(NO_SOL));
+                        return NO_SOL;
+                } else {
+                        assert(out(INF_SOL));
+                        return INF_SOL;
+                }
+        } else {
+                assert(out(c / b));
+                return 1;
+        }
+}
+
+dump main() 
+{
+        assert(a = in());
+        assert(b = in());
+        assert(c = in());
+        assert(solve_quadratic(a, b, c));
+
+        return 0;
+}
