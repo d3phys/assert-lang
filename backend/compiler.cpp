@@ -29,6 +29,7 @@ static char BUFFER[BUFSIZE] = {0};
 static const char *const RETURN_REG = "ax";
 static const char *const GLOBAL_REG = "cx";
 static const char *const LOCAL_REG  = "bx";
+static const char *const SHIFT_REG  = "hx";
 
 static int       keyword(ast_node *node);
 static double    *number(ast_node *node);
@@ -70,17 +71,19 @@ static inline void name(const char *arg = nullptr);
                 return syntax_error(root);         \
         } while (0)
 
-static inline const char *global_variable(var_info *var, ptrdiff_t shift = 0);
-static inline const char *local_variable (var_info *var, ptrdiff_t shift = 0);
+static inline const char  *local_variable(var_info *var, int memory = 1);
+static inline const char *global_variable(var_info *var, int memory = 1);
+
 static inline const char *memory(const char *reg, ptrdiff_t shift);
 
 static const char *create_variable(ast_node *variable, symbol_table *table);
 static const char *get_variable(ast_node *variable, symbol_table *table);
-static const char *find_variable(ast_node *variable, symbol_table *table);
+static const char *find_variable(ast_node *variable, symbol_table *table, 
+                                                                int memory = 1);
 
 static ast_node *declare_function(ast_node *root, array *const func_table);
 
-static inline ptrdiff_t get_shift(ast_node *variable);
+static ast_node *compile_shift(ast_node *variable, symbol_table *table);
 
 static ast_node *compile_return(ast_node *root, symbol_table *table);
 static ast_node *compile_define(ast_node *root, symbol_table *table);
@@ -118,6 +121,27 @@ $$
 $$
         POP(RETURN_REG);
         RET();
+$$
+        return success(root);
+}
+
+static ast_node *compile_show(ast_node *root, symbol_table *table)
+{
+        assert(root);
+        assert(table);
+        ast_node *error = nullptr;
+$$
+        require(root, AST_SHOW);
+$$
+        const char *ident = find_variable(root->left, table, 0);
+$$
+        if (!ident)
+                return syntax_error(root);
+
+        PUSH(ident);
+        error = compile_expr(root->right, table);
+$$
+        SHW();
 $$
         return success(root);
 }
@@ -314,13 +338,12 @@ $$
                 POP();
                 return success(root);
         case AST_SHOW:
-                DSP();
-                return success(root);
+                return compile_show(root->right, table);
         case AST_OUT:
                 error = compile_expr(root->right->right, table);
                 if (error)
                         return error;
-                SHW();
+                OUT();
                 return success(root);
         case AST_RETURN:
                 return compile_return(root->right, table);
@@ -477,6 +500,7 @@ $$
                 return success(root);
         case AST_NODE_IDENT:
 $$
+                require_ident(root);
                 ident = find_variable(root, table);
                 if (!ident)
                         return syntax_error(root);
@@ -535,7 +559,10 @@ $$
                 SIN();
                 return success(root);
         case AST_COS:
-                SIN();
+                COS();
+                return success(root);
+        case AST_INT:
+                INT();
                 return success(root);
         case AST_IN:
                 IN();
@@ -797,6 +824,9 @@ static const char *create_variable(ast_node *variable, symbol_table *table)
         if (ident)
                 return nullptr;
 
+        if (variable->right && variable->right->type != AST_NODE_NUMBER)
+                return nullptr;
+
         var = scope_table_add(table->local, variable);
         if (var)
                 return find_variable(variable, table);
@@ -811,9 +841,37 @@ static const char *get_variable(ast_node *variable, symbol_table *table)
 
         var_info *var = nullptr;
 
-        const char *ident = find_variable(variable, table);
-        if (ident)
-                return ident;
+
+        var = scope_table_find(table->global, variable);
+        if (var) {
+                ast_node *error = compile_shift(variable, table);
+                if (error)
+                        return nullptr;
+
+                if (var->node->left || variable->left) {
+                        dump_tree(var->node);
+                        return nullptr;
+                }
+
+                return global_variable(var);
+        }
+
+        var = scope_table_find(table->local, variable);
+        if (var) {
+                ast_node *error = compile_shift(variable, table);
+                if (error)
+                        return nullptr;
+
+                if (var->node->left || variable->left) {
+                        dump_tree(var->node);
+                        return nullptr;
+                }
+
+                return local_variable(var);
+        }
+
+        if (variable->right && variable->right->type != AST_NODE_NUMBER)
+                return nullptr;
 
         var = scope_table_add(table->local, variable);
         if (var)
@@ -822,34 +880,44 @@ static const char *get_variable(ast_node *variable, symbol_table *table)
         return nullptr;
 }
 
-static const char *find_variable(ast_node *variable, symbol_table *table)
+static const char *find_variable(ast_node *variable, symbol_table *table, int memory)
 {
         assert(table);
         assert(variable);
 
         var_info *var = nullptr;
 
-        ptrdiff_t shift = get_shift(variable);
+        ast_node *error = compile_shift(variable, table);
+        if (error)
+                return nullptr;
 
         var = scope_table_find(table->global, variable);
         if (var)
-                return global_variable(var, shift);
+                return global_variable(var, memory);
 
         var = scope_table_find(table->local, variable);
         if (var)
-                return local_variable(var, shift);
+                return local_variable(var, memory);
 
         return nullptr;
 }
 
-static inline ptrdiff_t get_shift(ast_node *variable)
+static ast_node *compile_shift(ast_node *variable, symbol_table *table)
 {
         assert(variable);
 
-        if (!variable->right)
-                return 0;
+        if (!variable->right) {
+                PUSH("0");
+                POP(SHIFT_REG);
+                return success(variable);
+        }
 
-        return ast_number(variable->right);
+        ast_node *error = compile_expr(variable->right, table);
+        if (error)
+                return error;
+
+        POP(SHIFT_REG);
+        return success(variable);
 }
 
 #define CMD(name, code, str, hash)                   \
@@ -895,17 +963,25 @@ static inline const char *memory(const char *reg, ptrdiff_t shift)
         return BUFFER;
 }
 
-static inline const char *global_variable(var_info *var, ptrdiff_t shift)
+static inline const char *global_variable(var_info *var, int memory)
 {
         assert(var);
-        snprintf(BUFFER, BUFSIZE, "[%s + %ld]", GLOBAL_REG, var->shift + shift);
+        if (memory)
+                snprintf(BUFFER, BUFSIZE, "[%s + %ld + %s]", GLOBAL_REG, var->shift, SHIFT_REG);
+        else
+                snprintf(BUFFER, BUFSIZE, "%s + %ld + %s", GLOBAL_REG, var->shift, SHIFT_REG);
+
         return BUFFER;
 }
 
-static inline const char *local_variable(var_info *var, ptrdiff_t shift)
+static inline const char *local_variable(var_info *var, int memory)
 {
         assert(var);
-        snprintf(BUFFER, BUFSIZE, "[%s + %ld]", LOCAL_REG, var->shift + shift);
+        if (memory)
+                snprintf(BUFFER, BUFSIZE, "[%s + %ld + %s]", LOCAL_REG, var->shift, SHIFT_REG);
+        else
+                snprintf(BUFFER, BUFSIZE, "%s + %ld + %s", LOCAL_REG, var->shift, SHIFT_REG);
+
         return BUFFER;
 }
 

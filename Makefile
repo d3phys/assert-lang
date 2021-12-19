@@ -54,7 +54,7 @@ CXXFLAGS = -g -D 'LOG_FILE="log.html"' --static-pie -std=c++14 -fmax-errors=100 
 	   -fsanitize=vptr                                                 \
 	   -lm -pie                                          
 
-SUBDIRS = lib frontend ast
+SUBDIRS = lib frontend ast backend
 
 CXX = g++
 CPP = $(CXX) -E 
@@ -65,19 +65,28 @@ TOPDIR	:= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 # Header files
 #
 HPATH  = $(TOPDIR)/include
+ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 
 make: subdirs
 	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o build lib/lib.o frontend/frontend.o ast/ast.o
+	$(CXX) $(CXXFLAGS) -o build lib/lib.o frontend/frontend.o \
+			      ast/ast.o backend/backend.o
 	./build
 
-front: subdirs
+front: subdirs frontend/main.o
 	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o front lib/lib.o \
 			      frontend/frontend.o ast/ast.o frontend/main.o
 
 mur: subdirs
 	$(CXX) $(CXXFLAGS) -o mur utils/mur.o lib/lib.o
+
+compile: make 
+	rm tree compiled ex
+	./front code tree
+	./build
+	assembly/ass -i compiled -o ex -s
+	assembly/exe ex
 
 test: make 
 	$(CXX) $(CXXFLAGS) -o tst test/test_logs.o core/core.o lib/lib.o ast/ast.o
