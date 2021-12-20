@@ -54,7 +54,7 @@ CXXFLAGS = -g -D 'LOG_FILE="log.html"' --static-pie -std=c++14 -fmax-errors=100 
 	   -fsanitize=vptr                                                 \
 	   -lm -pie                                          
 
-SUBDIRS = lib frontend ast backend
+SUBDIRS = lib frontend ast backend trans
 
 CXX = g++
 CPP = $(CXX) -E 
@@ -70,13 +70,23 @@ ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 make: subdirs
 	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o build lib/lib.o frontend/frontend.o \
-			      ast/ast.o backend/backend.o
+			      ast/ast.o backend/backend.o trans/trans.o
 	./build
 
 front: subdirs frontend/main.o
 	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o front lib/lib.o \
+	$(CXX) $(CXXFLAGS) -o tr lib/lib.o \
 			      frontend/frontend.o ast/ast.o frontend/main.o
+
+back: subdirs backend/main.o
+	$(OBJS)
+	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/backend.o \
+			      frontend/frontend.o ast/ast.o backend/main.o
+
+trans: subdirs trans/main.o
+	$(OBJS)
+	$(CXX) $(CXXFLAGS) -o rev lib/lib.o frontend/frontend.o\
+			      trans/trans.o ast/ast.o trans/main.o
 
 mur: subdirs
 	$(CXX) $(CXXFLAGS) -o mur utils/mur.o lib/lib.o

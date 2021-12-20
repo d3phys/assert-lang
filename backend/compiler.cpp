@@ -10,6 +10,19 @@
 #include <backend/scope_table.h>
 #include <backend/backend.h>
 
+static int INDENT = 0;
+static int INDENT_SPACES = 4;
+
+static void indent()
+{
+        INDENT += INDENT_SPACES;
+}
+
+static void unindent()
+{
+        INDENT -= INDENT_SPACES;
+}
+
 struct symbol_table {
         scope_table *local  = nullptr;
         scope_table *global = nullptr;
@@ -120,6 +133,7 @@ int compile_tree(FILE *output, ast_node *tree)
         gst.entries  = &global;
 
         create_func_table(tree, &func_table);
+        /* Check for main */
         dump_array(&func_table, sizeof(func_info), dump_array_function);
 
         symbol_table tab = {0};
@@ -154,6 +168,8 @@ static ast_node *compile_return(ast_node *root, symbol_table *table)
         ast_node *error = nullptr;
 $$
         require(root, AST_RETURN);
+        if (!root->right)
+                return syntax_error(root);
 $$
         error = compile_expr(root->right, table);
 $$
@@ -197,6 +213,7 @@ $$
 $$
         WRITE("; IF");
 
+        indent();
         error = compile_expr(root->left, table);
 $$
         if (error)
@@ -234,6 +251,7 @@ $$
                 LABEL(id("if_fail", root));
         }
 $$
+        unindent();
         return success(root);
 }
 
@@ -249,6 +267,7 @@ $$
 
         dump_array(table->local->entries, sizeof(var_info), dump_array_var_info);
         LABEL(id("while", root));
+        indent();
 $$
         if (!root->left)
                 return syntax_error(root);
@@ -267,6 +286,7 @@ $$
                 return error;
 $$
         JMP(id("while", root));
+        unindent();
         LABEL(id("while_end", root));
 
         return success(root);
@@ -316,8 +336,10 @@ $$
         require_ident(name);
 $$
         LABEL(ast_ident(name));
+        indent();
 $$
         error = compile_stmt(define->right, table);
+        unindent();
 $$
         if (!error)
                 dump_array(&entries, sizeof(var_info), dump_array_var_info);
@@ -358,14 +380,14 @@ $$
                 return compile_if(root->right, table);
         case AST_WHILE:
                 return compile_while(root->right, table);
+        case AST_SHOW:
+                return compile_show(root->right, table);
         case AST_CALL:
                 error = compile_call(root->right, table);
                 if (error)
                         return error;
                 POP();
                 return success(root);
-        case AST_SHOW:
-                return compile_show(root->right, table);
         case AST_OUT:
                 error = compile_expr(root->right->right, table);
                 if (error)
@@ -866,6 +888,7 @@ static ast_node *compile_shift(ast_node *variable, symbol_table *table)
 #define CMD(name, code, str, hash)                   \
         static inline void name(const char *arg)     \
         {                                            \
+                fprintf(file, "%*s", INDENT, "");  \
                 if (arg)                             \
                         fprintf(file, "%s %s\n", str, arg); \
                 else                                 \
@@ -878,6 +901,7 @@ static ast_node *compile_shift(ast_node *variable, symbol_table *table)
 static inline void LABEL(const char *arg)
 {
         assert(arg);
+        fprintf(file, "%*s", INDENT, "");  \
         fprintf(file, "%s:\n", arg);
 }
 

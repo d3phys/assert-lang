@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
         if (!tree)
                 goto fail;
 
+        $(dump_tree(tree);)
         error = compile_tree(out, tree);
         if (error)
                 goto fail;

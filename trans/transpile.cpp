@@ -58,8 +58,11 @@ static ast_node *success(ast_node *root)
 
 static ast_node *trans_error(ast_node *root)
 {
-        fprintf(stderr, ascii(red, "ERROR"));
-        dump_tree(root);
+        assert(root);
+        fprintf(stderr, ascii(red, "Syntax error:\n"));
+        save_ast_tree(stderr, root);
+        $(dump_tree(root);)
+        fprintf(stderr, "\n");
         return root;
 }
 
@@ -168,6 +171,9 @@ static ast_node *trans_call_param(FILE *file, ast_node *root)
                 write("%s ", keyword_string(KW_COMMA));
         }
 
+        if (!root->right)
+                return trans_error(root);
+
         error = trans_expr(file, root->right);
         if (error)
                 return error;
@@ -233,6 +239,9 @@ static ast_node *trans_if(FILE *file, ast_node *root)
         write("%s ", keyword_string(KW_IF));
         write("%s",  keyword_string(KW_OPEN));
 
+        if (!root->right)
+                return trans_error(root);
+
         error = trans_expr(file, root->left);
         if (error)
                 return error;
@@ -285,6 +294,9 @@ static ast_node *trans_while(FILE *file, ast_node *root)
         write("%s ", keyword_string(KW_WHILE));
         write("%s",  keyword_string(KW_OPEN));
 
+        if (!root->right)
+                return trans_error(root);
+
         error = trans_expr(file, root->left);
         if (error)
                 return error;
@@ -313,6 +325,9 @@ static ast_node *trans_return(FILE *file, ast_node *root)
 
         require(root, AST_RETURN);
         write("%s ", keyword_string(KW_RETURN));
+
+        if (!root->right)
+                return trans_error(root);
 
         error = trans_expr(file, root->right);
         if (error)
@@ -467,6 +482,9 @@ static ast_node *trans_expr(FILE *file, ast_node *root)
         if (op) {
                 write("%s", keyword_string(op));
                 write("%s", keyword_string(KW_OPEN));
+
+                if (!root->right)
+                        return trans_error(root);
 
                 error = trans_expr(file, root->right);
                 if (error)

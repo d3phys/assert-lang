@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
                 goto fail;
 
         err = trans_stmt(out, tree);
-        if (error)
+        if (err)
                 goto fail;
 
 fail:
@@ -57,7 +57,7 @@ fail:
 
         clock_t end = clock();
 
-        if (!tree || error) {
+        if (!tree || err || error) {
                 fprintf(stderr, ascii(red, "Transpilation failed\n"));
                 return EXIT_FAILURE;
         }
