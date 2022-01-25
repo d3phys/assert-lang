@@ -1,0 +1,37 @@
+grammar -> { "dump" function | "assert" "(" assign ")" } $
+
+assign -> ["inv"] ident "=" expression 
+          ["inv"] array "=" "{" expression "," { expression } ["," "..."] "}"
+
+define -> function block
+
+block  -> statement 
+         "{" statement  { statement } "}"
+
+statement -> "assert" "(" ( assign | "return"  expression ) ")"  |   
+             "if"     "(" expression ")" block ["else" block] |
+             "while"  "(" expression ")" block |
+              function
+
+function -> (ident | "show" | "in" | "display") "(" [expression] {"," expression } ")"
+              
+array -> ident "[" expression "]"
+
+expression -> logical {("||"|"&&") logical}
+
+logical -> boolean [(">"|"<"|">="|"<="|"=="|"!=") boolean]
+
+boolean -> [+|-] additive {(+|-) additive}
+
+additive   -> factor {("*"|"/") factor}
+
+factor     -> exponent ["^" exponent]
+
+exponent   -> number                             | 
+              ["sin"|"cos"] "(" expression ")"   |
+              ident     |
+              array     |
+              function  |
+              "!" exponent |
+              ("+"|"-") exponent |
+
