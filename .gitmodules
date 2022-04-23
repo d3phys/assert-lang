@@ -1,3 +1,6 @@
 [submodule "assembly"]
 	path = assembly
 	url = https://github.com/d3phys/assembly.git
+[submodule "lib/logs"]
+	path = lib/logs
+	url = https://github.com/d3phys/logs.git

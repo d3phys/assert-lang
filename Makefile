@@ -11,7 +11,7 @@
 # Awesome flags collection
 # Copyright (C) 2021, 2022 ded32, the TXLib creator
 #
-CXXFLAGS = -g -D 'LOG_FILE="log.html"' --static-pie -std=c++14 -fmax-errors=100 -Wall -Wextra  	   \
+TXXFLAGS = -g --static-pie -std=c++14 -fmax-errors=100 -Wall -Wextra  	   \
 	   -Weffc++ -Waggressive-loop-optimizations -Wc++0x-compat 	   \
 	   -Wc++11-compat -Wc++14-compat -Wcast-align -Wcast-qual 	   \
 	   -Wchar-subscripts -Wconditionally-supported -Wconversion        \
@@ -58,20 +58,31 @@ SUBDIRS = lib frontend ast backend trans
 
 CXX = g++
 CPP = $(CXX) -E 
-
 TOPDIR	:= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
-#
+ 
+ CXXFLAGS = $(HFLAGS) $(LOGSFLAGS) $(TXXFLAGS)
+LOGSFLAGS = -D 'LOGS_FILE="logs.html"' -D LOGS_COLORS -D LOGS_DEBUG
+
 # Header files
-#
-HPATH  = $(TOPDIR)/include
+
+HFLAGS = $(addprefix -I, $(HPATH))
+HPATH  = $(TOPDIR)/include 	\
+	 $(TOPDIR)/lib/logs
+
 ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 
 make: subdirs
 	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o build lib/lib.o frontend/frontend.o \
 			      ast/ast.o backend/backend.o trans/trans.o
-	./build
+	./build	
+
+tback: subdirs
+	$(OBJS)
+	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/backend.o \
+			      frontend/frontend.o ast/ast.o
+	./cum
 
 front: subdirs frontend/main.o
 	$(OBJS)

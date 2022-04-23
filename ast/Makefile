@@ -13,17 +13,14 @@ include $(TOPDIR)/Rules.makefile
 
 ### Dependencies ###
 dump_tree.o: dump_tree.cpp \
- /home/d3phys/Code/assert-language/include/logs.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/array.h
 parse.o: parse.cpp /home/d3phys/Code/assert-language/include/iommap.h \
- /home/d3phys/Code/assert-language/include/logs.h \
  /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/ast/keyword.h \
  /home/d3phys/Code/assert-language/include/ast/../../AST ../AST
-tree.o: tree.cpp /home/d3phys/Code/assert-language/include/logs.h \
- /home/d3phys/Code/assert-language/include/stack.h \
+tree.o: tree.cpp /home/d3phys/Code/assert-language/include/stack.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/ast/keyword.h \

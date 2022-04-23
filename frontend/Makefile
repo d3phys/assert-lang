@@ -15,21 +15,18 @@ include $(TOPDIR)/Rules.makefile
 ident.o: ident.cpp \
  /home/d3phys/Code/assert-language/include/frontend/keyword.h \
  /home/d3phys/Code/assert-language/include/../KEYWORDS ../KEYWORDS
-lexer.o: lexer.cpp /home/d3phys/Code/assert-language/include/logs.h \
- /home/d3phys/Code/assert-language/include/list.h \
+lexer.o: lexer.cpp /home/d3phys/Code/assert-language/include/list.h \
  /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/frontend/token.h \
  /home/d3phys/Code/assert-language/include/frontend/keyword.h \
  /home/d3phys/Code/assert-language/include/../KEYWORDS ../KEYWORDS
-main.o: main.cpp /home/d3phys/Code/assert-language/include/logs.h \
- /home/d3phys/Code/assert-language/include/array.h \
+main.o: main.cpp /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/iommap.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/frontend/token.h \
  /home/d3phys/Code/assert-language/include/frontend/compile.h
 recursive_descent.o: recursive_descent.cpp \
- /home/d3phys/Code/assert-language/include/logs.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/ast/keyword.h \

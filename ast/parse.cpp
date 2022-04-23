@@ -130,13 +130,13 @@ static ast_node *read_keyword(char *str, size_t length)
 
 static ast_node *syntax_error(char *str)
 {
-        fprintf(stderr, ascii(red, "Syntax error: %s"), str);
+        fprintf(stderr, ascii(RED, "Syntax error: %s"), str);
         return nullptr;
 }
 
 static ast_node *core_error()
 {
-        fprintf(stderr, ascii(red, "Core error"));
+        fprintf(stderr, ascii(RED, "Core error"));
         return nullptr;
 }
 

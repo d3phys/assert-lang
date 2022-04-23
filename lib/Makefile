@@ -4,20 +4,17 @@
 # 2021, d3phys
 #
 
-OBJS  = logs.o iommap.o stack.o list.o array.o
+SUBDIRS = logs
+OBJS    = iommap.o stack.o list.o array.o
 
 lib.o: $(OBJS) subdirs
-	$(LD) -r -o $@ $(OBJS)
+	$(LD) -r -o $@ $(OBJS) logs/logs.o
 
 include $(TOPDIR)/Rules.makefile
 
 ### Dependencies ###
-array.o: array.cpp /home/d3phys/Code/assert-language/include/array.h \
- /home/d3phys/Code/assert-language/include/logs.h
+array.o: array.cpp /home/d3phys/Code/assert-language/include/array.h
 iommap.o: iommap.cpp /home/d3phys/Code/assert-language/include/iommap.h
-list.o: list.cpp /home/d3phys/Code/assert-language/include/logs.h \
- /home/d3phys/Code/assert-language/include/list.h
+list.o: list.cpp /home/d3phys/Code/assert-language/include/list.h
 listdev.o: listdev.cpp /home/d3phys/Code/assert-language/include/list.h
-logs.o: logs.cpp /home/d3phys/Code/assert-language/include/logs.h
-stack.o: stack.cpp /home/d3phys/Code/assert-language/include/logs.h \
- /home/d3phys/Code/assert-language/include/stack.h
+stack.o: stack.cpp /home/d3phys/Code/assert-language/include/stack.h
