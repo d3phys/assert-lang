@@ -22,14 +22,13 @@ compiler.o: compiler.cpp \
  /home/d3phys/Code/assert-language/include/backend/scope_table.h \
  /home/d3phys/Code/assert-language/include/backend/backend.h \
  /home/d3phys/Code/assert-language/include/backend/iencode.h
-elf64.o: elf64.cpp \
+elf64.o: elf64.cpp /home/d3phys/Code/assert-language/include/iommap.h \
  /home/d3phys/Code/assert-language/include/backend/elf64.h \
- /home/d3phys/Code/assert-language/include/iommap.h \
  /home/d3phys/Code/assert-language/include/backend/backend.h \
  /home/d3phys/Code/assert-language/include/stack.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/array.h \
- /home/d3phys/Code/assert-language/include/backend/iencode.h
+ /home/d3phys/Code/assert-language/include/backend/iencode.h ../STDLIB
 main.o: main.cpp /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/iommap.h \
  /home/d3phys/Code/assert-language/include/stack.h \

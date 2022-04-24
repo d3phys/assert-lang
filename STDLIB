@@ -1,0 +1,4 @@
+/* STDLIB defines standard assert-lang functions
+   STDLIB(name, number of argument)              */
+   
+ASS_STDLIB(print, 1)

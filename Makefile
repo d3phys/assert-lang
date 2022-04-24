@@ -11,7 +11,7 @@
 # Awesome flags collection
 # Copyright (C) 2021, 2022 ded32, the TXLib creator
 #
-TXXFLAGS = -g --static-pie -std=c++14 -fmax-errors=100 -Wall -Wextra  	   \
+TXXFLAGS = -g --static-pie -std=c++14 -fmax-errors=10 -Wall -Wextra  	   \
 	   -Weffc++ -Waggressive-loop-optimizations -Wc++0x-compat 	   \
 	   -Wc++11-compat -Wc++14-compat -Wcast-align -Wcast-qual 	   \
 	   -Wchar-subscripts -Wconditionally-supported -Wconversion        \

@@ -54,9 +54,9 @@ static ast_node *compile_call  (ast_node *root, symbol_table *table);
 
 
 
-size_t segment_memcpy(
+char *segment_memcpy(
         ac_segment *segment, 
-        const char *data, 
+        const void *data, 
         size_t size
 ) {
         assert(data);
@@ -66,7 +66,7 @@ size_t segment_memcpy(
         fprintf(stderr, "%p + %lu = %p\n", segment->data, segment->size, segment->data + segment->size);
         memcpy(segment->data + segment->size, data, size);
 
-        size_t ret = segment->size;
+        char *ret = segment->data + segment->size;
         segment->size += size; 
 
         return ret;
@@ -74,11 +74,12 @@ size_t segment_memcpy(
 
 char *segment_mmap(
         ac_segment *segment, 
-        const char *data, 
+        const void *data, 
         size_t size
 ) {
         assert(data);
-        assert(segment && !segment->data);
+        assert(segment);
+        assert(!segment->data);
         
         if (!segment_alloc(segment, size))
                 return nullptr;
