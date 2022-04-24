@@ -6,49 +6,51 @@
 #include <backend/backend.h>
 
 
-const size_t ASS_ELF_ALIGN = 0x10;
+typedef ac_segment elf64_section;
 
-
-/*   0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS file
-     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
-     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    2 .rodata
-     4: 0000000000000000     0 SECTION LOCAL  DEFAULT    3 .data
-     5: 0000000000000000     0 SECTION LOCAL  DEFAULT    4 .bss
-     6: stdlib functions
-     ............................................................
-     n: xxxxxxxxxxxxxxxx     0 NOTYPE  GLOBAL DEFAULT    1 _start */
-
-const Elf64_Half ASS_ELF_LOCALSNUM = 6;
-const Elf64_Half ASS_ELF_STDLIBNUM = 1;
-const Elf64_Half ASS_ELF_SYMTABNUM = ASS_ELF_LOCALSNUM + ASS_ELF_STDLIBNUM + 1;
-
-
-const Elf64_Half ASS_ELF_SHNUM  = 9;
-
-enum elf64_shdr_ndx {
-        ASS_ELF_NDX_NULL        = 0,      
-        ASS_ELF_NDX_TEXT        = 1,      
-        ASS_ELF_NDX_RODATA      = 2,      
-        ASS_ELF_NDX_DATA        = 3,      
-        ASS_ELF_NDX_BSS         = 4,      
-        ASS_ELF_NDX_SHSTRTAB    = 5,      
-        ASS_ELF_NDX_SYMTAB      = 6,      
-        ASS_ELF_NDX_STRTAB      = 7,      
-        ASS_ELF_NDX_RELA_TEXT   = 8,      
+const size_t SEC_ALIGN = 0x10;
+enum elf64_sections_enum {
+        SEC_NULL      = 0,      
+        SEC_TEXT      = 1,      
+        SEC_RODATA    = 2,      
+        SEC_DATA      = 3,      
+        SEC_BSS       = 4,      
+        SEC_SHSTRTAB  = 5,      
+        SEC_SYMTAB    = 6,      
+        SEC_STRTAB    = 7,      
+        SEC_RELA_TEXT = 8,
+        SEC_NUM  
 };
 
-enum elf64_symtab_ndx {
-        ASS_SYM_NDX_NULL        = 0,      
-        ASS_SYM_NDX_FILE        = 1,      
-        ASS_SYM_NDX_TEXT        = 2,      
-        ASS_SYM_NDX_RODATA      = 3,      
-        ASS_SYM_NDX_DATA        = 4,      
-        ASS_SYM_NDX_BSS         = 5,            
+struct elf64_symbol {   
+        char *name = nullptr;
+        ptrdiff_t value = 0;
 };
 
+/* Import standard functions */
+enum elf64_symbols_enum {
+        SYM_NULL   = 0,       
+        SYM_FILE   = 1,       
+        SYM_TEXT   = 2,       
+        SYM_RODATA = 3,       
+        SYM_DATA   = 4,       
+        SYM_BSS    = 5,   
+            
+#define ASS_STDLIB(ID, NAME, ARGS)     \
+        SYM_##ID,
+#include "../STDLIB"
+#undef ASS_STDLIB
 
-int create_elf64(ac_virt_machine *vm, ac_symtab *st, const char *name);
+        SYM_START, 
+        SYM_NUM
+};
+
+const size_t SYM_LOCALS = SYM_BSS + 1;
+
+
+int create_elf64(
+        elf64_section *secs, elf64_symbol *syms, const char *name
+);
 
 
 #endif /* ASSERT_ELF64_H */

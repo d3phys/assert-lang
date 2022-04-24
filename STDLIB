@@ -1,4 +1,10 @@
 /* STDLIB defines standard assert-lang functions
-   STDLIB(name, number of argument)              */
+   STDLIB(id, name, number of argument)          */
    
-ASS_STDLIB(print, 1)
+ASS_STDLIB(PRINT,  "__ass_print", 1)
+ASS_STDLIB(SCAN,   "__ass_scan",  0)
+ASS_STDLIB(SIN,    "__ass_sin",   1)
+ASS_STDLIB(COS,    "__ass_cos",   1)
+ASS_STDLIB(LOG,    "__ass_log",   1)
+ASS_STDLIB(POW,    "__ass_pow",   2)
+

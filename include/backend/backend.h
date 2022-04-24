@@ -35,9 +35,7 @@ struct ac_symbol {
 };
 
 struct ac_segment {
-        size_t elf64_ndx_shdr   = 0;
-        size_t elf64_ndx_symtab = 0;
-        
+        const char *name  = 0;
         size_t size       = 0;
         char *data        = 0;
         size_t allocated  = 0;
@@ -48,18 +46,17 @@ const size_t SEG_ALLOC_INIT = 256;
 void  segment_free (ac_segment *segment);
 void *segment_alloc(ac_segment *segment, size_t size);
 
-size_t segment_memcpy(
+char *segment_memcpy(
         ac_segment *segment, 
-        const char *data, 
+        const void *data, 
         size_t size
 );
 
 char *segment_mmap(
         ac_segment *segment, 
-        const char *data, 
+        const void *data, 
         size_t size
 );
-
 
 struct ac_virt_machine {
         struct {

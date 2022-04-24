@@ -63,7 +63,6 @@ char *segment_memcpy(
         assert(segment);
         
         segment_alloc(segment, size);
-        fprintf(stderr, "%p + %lu = %p\n", segment->data, segment->size, segment->data + segment->size);
         memcpy(segment->data + segment->size, data, size);
 
         char *ret = segment->data + segment->size;
@@ -94,7 +93,9 @@ void segment_free(ac_segment *seg)
 {
         assert(seg);
         seg->allocated = 0;
+        
         free(seg->data);
+        seg->data = nullptr;
 }
 
 void *segment_alloc(ac_segment *segment, size_t size) 
