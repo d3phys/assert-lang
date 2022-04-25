@@ -3,10 +3,13 @@
 
 #include <elf.h>
 #include <iommap.h>
-#include <backend/backend.h>
 
-
-typedef ac_segment elf64_section;
+struct elf64_section {
+        const char *name  = 0;
+        size_t size       = 0;
+        char *data        = 0;
+        size_t allocated  = 0;
+};
 
 const size_t SEC_ALIGN = 0x10;
 enum elf64_sections_enum {
@@ -47,10 +50,11 @@ enum elf64_symbols_enum {
 
 const size_t SYM_LOCALS = SYM_BSS + 1;
 
+int create_elf64(elf64_section *secs, elf64_symbol *syms, const char *name);
 
-int create_elf64(
-        elf64_section *secs, elf64_symbol *syms, const char *name
-);
+elf64_symbol  *fill_symbols_names (elf64_section *secs, elf64_symbol *syms, const char *file_name);
+elf64_section *fill_sections_names(elf64_section *secs);
 
+int elf64_utest(const char *file_name);
 
 #endif /* ASSERT_ELF64_H */

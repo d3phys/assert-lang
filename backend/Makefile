@@ -4,7 +4,7 @@
 # 2021, d3phys
 #
 
-OBJS = compiler.o elf64.o  #compiler.o scope_table.o  iencode.o
+OBJS = compiler.o elf64.o #compiler.o scope_table.o  iencode.o
 
 backend.o: $(OBJS) subdirs
 	$(LD) -r -o $@ $(OBJS)
@@ -19,25 +19,32 @@ compiler.o: compiler.cpp \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/ast/keyword.h \
  /home/d3phys/Code/assert-language/include/ast/../../AST \
- /home/d3phys/Code/assert-language/include/backend/scope_table.h \
  /home/d3phys/Code/assert-language/include/backend/backend.h \
- /home/d3phys/Code/assert-language/include/backend/iencode.h
+ /home/d3phys/Code/assert-language/include/backend/iencode.h \
+ /home/d3phys/Code/assert-language/include/backend/elf64.h \
+ /home/d3phys/Code/assert-language/include/../STDLIB
 elf64.o: elf64.cpp /home/d3phys/Code/assert-language/include/iommap.h \
  /home/d3phys/Code/assert-language/include/backend/elf64.h \
+ /home/d3phys/Code/assert-language/include/../STDLIB \
  /home/d3phys/Code/assert-language/include/backend/backend.h \
  /home/d3phys/Code/assert-language/include/stack.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/backend/iencode.h ../STDLIB
+elf64test.o: elf64test.cpp \
+ /home/d3phys/Code/assert-language/include/backend/elf64.h \
+ /home/d3phys/Code/assert-language/include/iommap.h \
+ /home/d3phys/Code/assert-language/include/../STDLIB
 main.o: main.cpp /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/iommap.h \
  /home/d3phys/Code/assert-language/include/stack.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \
  /home/d3phys/Code/assert-language/include/ast/keyword.h \
  /home/d3phys/Code/assert-language/include/ast/../../AST \
- /home/d3phys/Code/assert-language/include/backend/scope_table.h \
  /home/d3phys/Code/assert-language/include/backend/backend.h \
- /home/d3phys/Code/assert-language/include/backend/iencode.h
+ /home/d3phys/Code/assert-language/include/backend/iencode.h \
+ /home/d3phys/Code/assert-language/include/backend/elf64.h \
+ /home/d3phys/Code/assert-language/include/../STDLIB
 scope_table.o: scope_table.cpp \
  /home/d3phys/Code/assert-language/include/array.h \
  /home/d3phys/Code/assert-language/include/ast/tree.h \

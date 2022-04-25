@@ -78,10 +78,10 @@ make: subdirs
 			      ast/ast.o backend/backend.o trans/trans.o
 	./build	
 
-tback: subdirs
+tback: subdirs backend/elf64test.o
 	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/backend.o \
-			      frontend/frontend.o ast/ast.o
+			      frontend/frontend.o ast/ast.o backend/elf64test.o
 	./cum
 
 front: subdirs frontend/main.o

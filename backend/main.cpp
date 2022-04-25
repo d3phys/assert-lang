@@ -10,8 +10,8 @@
 #include <stack.h>
 #include <ast/tree.h>
 #include <ast/keyword.h>
-#include <backend/scope_table.h>
 #include <backend/backend.h>
+#include <backend/elf64.h>
 
 static int input_error();
 static int file_error(const char *file_name);
@@ -28,10 +28,6 @@ int main(int argc, char *argv[])
         const char *out_file = argv[2];
 
         clock_t start = clock();
-        FILE *out = fopen(out_file, "w");
-        if (!out)
-                return file_error(out_file);
-
         mmap_data md = {0};
         int error = mmap_in(&md, src_file);
         if (error)
@@ -40,17 +36,36 @@ int main(int argc, char *argv[])
         array idents = {0};
 
         ast_node *err = nullptr;
+
+        elf64_section *secs = (elf64_section *)calloc(SEC_NUM, sizeof(elf64_section));
+        assert(secs);
+
+        elf64_symbol *syms = (elf64_symbol *)calloc(SYM_NUM, sizeof(elf64_symbol));
+        assert(syms);
+
         char *reader = md.buf;
         ast_node *tree = read_ast_tree(&reader, &idents);
         mmap_free(&md);
         if (!tree)
                 goto fail;
 
+        fill_sections_names(secs);
+        fill_symbols_names(secs, syms, out_file);
+
         $(dump_tree(tree);)
-        error = compile_tree(out, tree);
-        if (error)
+        err = compile_tree(tree, secs, syms);
+        if (err)
                 goto fail;
 
+        create_elf64(secs, syms, out_file);
+        
+        for (size_t i = 0; i < SEC_NUM; i++)
+                if (secs[i].data)
+                        section_free(secs + i);
+        
+        free(syms);
+        free(secs);
+        
 fail:
         char **data = (char **)idents.data;
         for (size_t i = 0; i < idents.size; i++) {
@@ -58,7 +73,6 @@ fail:
         }
 
         free_array(&idents, sizeof(char *));
-        fclose(out);
 
         clock_t end = clock();
 

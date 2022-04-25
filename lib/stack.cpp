@@ -48,6 +48,9 @@ static item_t *realloc_stack(const stack *const stk, const size_t capacity);
 static int verify_stack(stack *const stk);
 static int verify_empty_stack(const stack *const stk);
 
+static item_t item_stack(stack *const stk, size_t index, int *const error);
+
+
 /**
  * @brief Calculates stk hash
  *
@@ -170,8 +173,6 @@ item_t *data_stack(stack *const stk, int *const error)
         assert(stk);
         int err = 0;
 
-        item_t item = POISON;
-
 #ifndef UNPROTECT
 $       (err = verify_stk(stk);)
 #endif /* UNPROTECT */
@@ -192,6 +193,59 @@ finally:
         }
 
         return stk->items;
+}
+
+item_t top_stack(stack *const stk, int *const error)
+{
+        return item_stack(stk, stk->size - 1, error);
+}
+
+item_t bottom_stack(stack *const stk, int *const error)
+{
+        return item_stack(stk, 0, error);
+}
+        
+static item_t item_stack(stack *const stk, size_t index, int *const error)
+{
+        assert(stk);
+        int err = 0;
+
+        item_t item = POISON;
+
+#ifndef UNPROTECT
+$       (err = verify_stk(stk);)
+#endif /* UNPROTECT */
+
+        if (err) {
+                fprintf(logs, "Can't pop item from invalid stk\n");
+                goto finally;
+        }
+
+        if (stk->size == 0) {
+                fprintf(logs, "Can't get item %lu from empty stack\n", index);
+                err = STK_EMPTY_POP;
+                goto finally;
+        }
+
+        if (stk->size - 1 < index) {
+                fprintf(logs, "Can't get item %lu. Index %lu is too big\n", index);
+                err = STK_EMPTY_POP;
+                goto finally;                
+        }
+
+        item = stk->items[index];
+
+#ifndef UNPROTECT
+$       (err = verify_stk(stk);)
+#endif /* UNPROTECT */
+
+finally:
+        if (err) {
+                set_error(error, err);
+                log_dump(stk);
+        }
+
+        return item;        
 }
 
 item_t check_stack(stack *const stk, int *const error)

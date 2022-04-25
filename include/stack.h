@@ -156,6 +156,9 @@ item_t *find_stack(stack *const stk, const item_t item, int *const error = nullp
 
 item_t *data_stack(stack *const stk, int *const error = nullptr);
 
+item_t    top_stack(stack *const stk, int *const error = nullptr);
+item_t bottom_stack(stack *const stk, int *const error = nullptr);
+
 
 #endif /* STACK_H_ */
 

@@ -190,7 +190,7 @@ void dump_array(array *const arr, size_t item_size,
                               "| %-4lu | ", i);
 
                 fprintf(logs, "0x%-4x| ", i * item_size);
-                fprintf(logs, html(brown, bold("BULLSHIT ")));
+                fprintf(logs, html(BROWN, bold("BULLSHIT ")));
                 if (print) print(arr->data + i * item_size);
                 fprintf(logs, "\n");
         }

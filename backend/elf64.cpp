@@ -9,23 +9,11 @@
 
 static Elf64_Ehdr *elf64_create_ehdr();
 
-static elf64_symbol  *fill_symbols_names (
-        elf64_section *secs, elf64_symbol *syms, const char *file_name
-);
-
-static elf64_section *fill_sections_names(elf64_section *secs);
-
 extern const size_t SEC_ALIGN;
 static inline size_t elf64_align(size_t addr, size_t align = SEC_ALIGN);
 
-static int elf64_utest(const char *file_name);
 
-int main()
-{
-        return elf64_utest("unit");
-}
-
-static int elf64_utest(const char *file_name)
+int elf64_utest(const char *file_name)
 {  
         assert(file_name);
             
@@ -54,21 +42,21 @@ static int elf64_utest(const char *file_name)
                 0x48, 0x31, 0xff, 0x0f, 0x05, 0xc3
         };
 
-        segment_mmap(secs + SEC_TEXT, text_data, sizeof(text_data));
+        section_mmap(secs + SEC_TEXT, text_data, sizeof(text_data));
 
         unsigned char rodata_data[] = {
                 0xfe, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
                 0xbe, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
 
-        segment_mmap(secs + SEC_RODATA, rodata_data, sizeof(rodata_data));
+        section_mmap(secs + SEC_RODATA, rodata_data, sizeof(rodata_data));
 
         unsigned char data_data[] = {
                 0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x23, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
 
-        segment_mmap(secs + SEC_DATA, data_data, sizeof(data_data));
+        section_mmap(secs + SEC_DATA, data_data, sizeof(data_data));
 
         secs[SEC_BSS].size = 0x30;
         
@@ -76,20 +64,20 @@ static int elf64_utest(const char *file_name)
 
         elf64_section *rela = secs + SEC_RELA_TEXT;
         /* Fill text relocation table */
-        Elf64_Rela rela0 = {0x13, ELF64_R_INFO(SYM_PRINT,  R_X86_64_PC32), -0x04}; segment_memcpy(rela, &rela0, sizeof(Elf64_Rela));
-        Elf64_Rela rela1 = {0x1b, ELF64_R_INFO(SYM_BSS,    R_X86_64_32S),   0x00}; segment_memcpy(rela, &rela1, sizeof(Elf64_Rela));
-        Elf64_Rela rela2 = {0x25, ELF64_R_INFO(SYM_PRINT,  R_X86_64_PC32), -0x04}; segment_memcpy(rela, &rela2, sizeof(Elf64_Rela));
-        Elf64_Rela rela3 = {0x2d, ELF64_R_INFO(SYM_RODATA, R_X86_64_32S),   0x00}; segment_memcpy(rela, &rela3, sizeof(Elf64_Rela));
-        Elf64_Rela rela4 = {0x35, ELF64_R_INFO(SYM_RODATA, R_X86_64_32S),   0x08}; segment_memcpy(rela, &rela4, sizeof(Elf64_Rela));
-        Elf64_Rela rela5 = {0x3d, ELF64_R_INFO(SYM_DATA,   R_X86_64_32S),   0x00}; segment_memcpy(rela, &rela5, sizeof(Elf64_Rela));
-        Elf64_Rela rela6 = {0x45, ELF64_R_INFO(SYM_DATA,   R_X86_64_32S),   0x08}; segment_memcpy(rela, &rela6, sizeof(Elf64_Rela));
-        Elf64_Rela rela7 = {0x57, ELF64_R_INFO(SYM_BSS,    R_X86_64_32S),   0x10}; segment_memcpy(rela, &rela7, sizeof(Elf64_Rela));
+        Elf64_Rela rela0 = {0x13, ELF64_R_INFO(SYM_PRINT,  R_X86_64_PC32), -0x04}; section_memcpy(rela, &rela0, sizeof(Elf64_Rela));
+        Elf64_Rela rela1 = {0x1b, ELF64_R_INFO(SYM_BSS,    R_X86_64_32S),   0x00}; section_memcpy(rela, &rela1, sizeof(Elf64_Rela));
+        Elf64_Rela rela2 = {0x25, ELF64_R_INFO(SYM_PRINT,  R_X86_64_PC32), -0x04}; section_memcpy(rela, &rela2, sizeof(Elf64_Rela));
+        Elf64_Rela rela3 = {0x2d, ELF64_R_INFO(SYM_RODATA, R_X86_64_32S),   0x00}; section_memcpy(rela, &rela3, sizeof(Elf64_Rela));
+        Elf64_Rela rela4 = {0x35, ELF64_R_INFO(SYM_RODATA, R_X86_64_32S),   0x08}; section_memcpy(rela, &rela4, sizeof(Elf64_Rela));
+        Elf64_Rela rela5 = {0x3d, ELF64_R_INFO(SYM_DATA,   R_X86_64_32S),   0x00}; section_memcpy(rela, &rela5, sizeof(Elf64_Rela));
+        Elf64_Rela rela6 = {0x45, ELF64_R_INFO(SYM_DATA,   R_X86_64_32S),   0x08}; section_memcpy(rela, &rela6, sizeof(Elf64_Rela));
+        Elf64_Rela rela7 = {0x57, ELF64_R_INFO(SYM_BSS,    R_X86_64_32S),   0x10}; section_memcpy(rela, &rela7, sizeof(Elf64_Rela));
 
         create_elf64(secs, syms, file_name);
         
         for (size_t i = 0; i < SEC_NUM; i++)
                 if (secs[i].data)
-                        segment_free(secs + i);
+                        section_free(secs + i);
         
         free(syms);
         free(secs);
@@ -338,41 +326,41 @@ Elf64_Sym *elf64_create_symtab(elf64_symbol *syms, elf64_section *secs)
         return symtab;
 }
 
-static elf64_symbol *fill_symbols_names(elf64_section *secs, elf64_symbol *syms, const char *file_name)
+elf64_symbol *fill_symbols_names(elf64_section *secs, elf64_symbol *syms, const char *file_name)
 {
         assert(syms);
 
         elf64_section *strtab = secs + SEC_STRTAB;
 
-        syms[SYM_NULL].name = segment_memcpy(strtab, "", sizeof(""));        
-        syms[SYM_FILE].name = segment_memcpy(strtab, file_name, strlen(file_name) + 1);
+        syms[SYM_NULL].name = section_memcpy(strtab, "", sizeof(""));        
+        syms[SYM_FILE].name = section_memcpy(strtab, file_name, strlen(file_name) + 1);
 
 #define ASS_STDLIB(ID, NAME, ARGS) \
-        syms[SYM_##ID].name = segment_memcpy(strtab, NAME, sizeof(NAME));
+        syms[SYM_##ID].name = section_memcpy(strtab, NAME, sizeof(NAME));
 #include "../STDLIB"
 #undef ASS_STDLIB
 
-        syms[SYM_START].name = segment_memcpy(strtab, "_start", sizeof("_start"));
+        syms[SYM_START].name = section_memcpy(strtab, "_start", sizeof("_start"));
 
         return nullptr;
 }
 
 
-static elf64_section *fill_sections_names(elf64_section *secs)
+elf64_section *fill_sections_names(elf64_section *secs)
 {
         assert(secs);
         
         elf64_section *shstrtab = secs + SEC_SHSTRTAB;
         
-        secs[SEC_NULL].name      = segment_memcpy(shstrtab, "", sizeof(""));
-        secs[SEC_TEXT].name      = segment_memcpy(shstrtab, ".text", sizeof(".text"));
-        secs[SEC_RODATA].name    = segment_memcpy(shstrtab, ".rodata", sizeof(".rodata"));
-        secs[SEC_DATA].name      = segment_memcpy(shstrtab, ".data", sizeof(".data"));
-        secs[SEC_BSS].name       = segment_memcpy(shstrtab, ".bss", sizeof(".bss"));
-        secs[SEC_SHSTRTAB].name  = segment_memcpy(shstrtab, ".shstrtab", sizeof(".shstrtab"));
-        secs[SEC_SYMTAB].name    = segment_memcpy(shstrtab, ".symtab", sizeof(".symtab"));
-        secs[SEC_STRTAB].name    = segment_memcpy(shstrtab, ".strtab", sizeof(".strtab"));
-        secs[SEC_RELA_TEXT].name = segment_memcpy(shstrtab, ".rela.text", sizeof(".rela.text"));   
+        secs[SEC_NULL].name      = section_memcpy(shstrtab, "", sizeof(""));
+        secs[SEC_TEXT].name      = section_memcpy(shstrtab, ".text", sizeof(".text"));
+        secs[SEC_RODATA].name    = section_memcpy(shstrtab, ".rodata", sizeof(".rodata"));
+        secs[SEC_DATA].name      = section_memcpy(shstrtab, ".data", sizeof(".data"));
+        secs[SEC_BSS].name       = section_memcpy(shstrtab, ".bss", sizeof(".bss"));
+        secs[SEC_SHSTRTAB].name  = section_memcpy(shstrtab, ".shstrtab", sizeof(".shstrtab"));
+        secs[SEC_SYMTAB].name    = section_memcpy(shstrtab, ".symtab", sizeof(".symtab"));
+        secs[SEC_STRTAB].name    = section_memcpy(shstrtab, ".strtab", sizeof(".strtab"));
+        secs[SEC_RELA_TEXT].name = section_memcpy(shstrtab, ".rela.text", sizeof(".rela.text"));   
 
         return shstrtab;
 }
@@ -463,6 +451,81 @@ static inline size_t elf64_align(size_t addr, size_t align)
         return addr + (align - addr) % align; 
 }
         
+char *section_memcpy(
+        elf64_section *sec, 
+        const void *data, 
+        size_t size
+) {
+        assert(data);
+        assert(sec);
+        
+        section_alloc(sec, size);
+        memcpy(sec->data + sec->size, data, size);
+
+        char *ret = sec->data + sec->size;
+        sec->size += size; 
+
+        return ret;
+}
+
+char *section_mmap(
+        elf64_section *sec, 
+        const void *data, 
+        size_t size
+) {
+        assert(data);
+        assert(sec);
+        assert(!sec->data);
+        
+        if (!section_alloc(sec, size))
+                return nullptr;
+                
+        memcpy(sec->data, data, size);
+        sec->size = size;
+         
+        return sec->data;
+}
+
+void section_free(elf64_section *sec)
+{
+        assert(sec);
+        sec->allocated = 0;
+        
+        free(sec->data);
+        sec->data = nullptr;
+}
+
+void *section_alloc(elf64_section *sec, size_t size) 
+{ 
+        assert(sec);
+        assert(size);
+
+        char *data       = sec->data;
+        size_t allocated = sec->allocated;
+
+        if (!allocated)
+                allocated = SEG_ALLOC_INIT;   
+
+        while (size + sec->size > allocated)
+                allocated *= 2;
+
+        if (allocated > sec->allocated) {
+                data = (char *)realloc(sec->data, allocated);
+                if (!data) {
+                        int saved_errno = errno;
+
+                        fprintf(stderr, "Can't allocate segment data: %s", strerror(errno));
+
+                        errno = saved_errno;
+                        return nullptr;
+                }        
+        }
+
+        sec->allocated = allocated;
+        sec->data      = data;
+        
+        return data;
+}
 
 
 
