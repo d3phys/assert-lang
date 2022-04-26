@@ -24,7 +24,7 @@ int elf64_utest(const char *file_name)
         assert(syms);
 
         fill_sections_names(secs);
-        fill_symbols_names(secs, syms, file_name);
+        fill_symbols_info(secs, syms, file_name);
 
         unsigned char text_data[] = {
                 0xc3, 0xe8, 0xfa, 0xff, 0xff, 0xff, 0x48, 0x31, 
@@ -326,7 +326,7 @@ Elf64_Sym *elf64_create_symtab(elf64_symbol *syms, elf64_section *secs)
         return symtab;
 }
 
-elf64_symbol *fill_symbols_names(elf64_section *secs, elf64_symbol *syms, const char *file_name)
+elf64_symbol *fill_symbols_info(elf64_section *secs, elf64_symbol *syms, const char *file_name)
 {
         assert(syms);
 
@@ -335,8 +335,9 @@ elf64_symbol *fill_symbols_names(elf64_section *secs, elf64_symbol *syms, const 
         syms[SYM_NULL].name = section_memcpy(strtab, "", sizeof(""));        
         syms[SYM_FILE].name = section_memcpy(strtab, file_name, strlen(file_name) + 1);
 
-#define ASS_STDLIB(ID, NAME, ARGS) \
-        syms[SYM_##ID].name = section_memcpy(strtab, NAME, sizeof(NAME));
+#define ASS_STDLIB(ID, NAME, ARGS)                                        \
+        syms[SYM_##ID].name = section_memcpy(strtab, NAME, sizeof(NAME)); \
+        syms[SYM_##ID].info = ARGS;
 #include "../STDLIB"
 #undef ASS_STDLIB
 

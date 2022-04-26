@@ -28,6 +28,7 @@ enum elf64_sections_enum {
 struct elf64_symbol {   
         char *name = nullptr;
         ptrdiff_t value = 0;
+        size_t info = 0;
 };
 
 /* Import standard functions */
@@ -52,7 +53,7 @@ const size_t SYM_LOCALS = SYM_BSS + 1;
 
 int create_elf64(elf64_section *secs, elf64_symbol *syms, const char *name);
 
-elf64_symbol  *fill_symbols_names (elf64_section *secs, elf64_symbol *syms, const char *file_name);
+elf64_symbol  *fill_symbols_info  (elf64_section *secs, elf64_symbol *syms, const char *file_name);
 elf64_section *fill_sections_names(elf64_section *secs);
 
 int elf64_utest(const char *file_name);

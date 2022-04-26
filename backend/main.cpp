@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
                 goto fail;
 
         fill_sections_names(secs);
-        fill_symbols_names(secs, syms, out_file);
+        fill_symbols_info(secs, syms, out_file);
 
         $(dump_tree(tree);)
         err = compile_tree(tree, secs, syms);

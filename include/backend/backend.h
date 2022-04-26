@@ -27,6 +27,7 @@ struct ac_symbol {
 
         const char *ident = nullptr;
         ast_node *node    = nullptr;
+        int addend  = 0;
         ptrdiff_t offset  = 0;
 
         size_t info       = 0;

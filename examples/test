@@ -1,0 +1,11 @@
+assert(inv NO_SOL = 404);
+assert(inv INF_SOL = 8);
+
+dump main() 
+{
+        assert(b = 111);
+        assert(c = 123);
+        assert(a = b + c);
+        
+        return 0;
+}
