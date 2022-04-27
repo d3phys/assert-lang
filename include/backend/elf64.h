@@ -51,6 +51,7 @@ enum elf64_symbols_enum {
 
 const size_t SYM_LOCALS = SYM_BSS + 1;
 
+inline size_t elf64_align(size_t addr, size_t align = SEC_ALIGN);
 int create_elf64(elf64_section *secs, elf64_symbol *syms, const char *name);
 
 elf64_symbol  *fill_symbols_info  (elf64_section *secs, elf64_symbol *syms, const char *file_name);

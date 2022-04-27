@@ -10,8 +10,6 @@
 static Elf64_Ehdr *elf64_create_ehdr();
 
 extern const size_t SEC_ALIGN;
-static inline size_t elf64_align(size_t addr, size_t align = SEC_ALIGN);
-
 
 int elf64_utest(const char *file_name)
 {  
@@ -447,7 +445,7 @@ static Elf64_Ehdr *elf64_create_ehdr()
         return ehdr;
 }
 
-static inline size_t elf64_align(size_t addr, size_t align)
+inline size_t elf64_align(size_t addr, size_t align)
 {
         return addr + (align - addr) % align; 
 }
@@ -493,6 +491,7 @@ void section_free(elf64_section *sec)
         sec->allocated = 0;
         
         free(sec->data);
+        sec->size = 0;
         sec->data = nullptr;
 }
 
