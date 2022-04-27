@@ -51,8 +51,8 @@ char *section_mmap(
 );
 
 struct ac_virtual_memory {
-        ptrdiff_t _start_addr = 0;
-
+        ptrdiff_t _start = 0;
+        ac_symbol *main  = 0;
         struct {
                 int stack = 0;
                 const int ret  = IE64_RAX;

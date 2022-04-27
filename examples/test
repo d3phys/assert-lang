@@ -1,11 +1,16 @@
-assert(inv NO_SOL = 404);
-assert(inv INF_SOL = 8);
+dump hello(arg)
+{
+        assert(out(arg - 12));
+        return arg;
+}
 
 dump main() 
 {
-        assert(b = 111);
-        assert(c = 123);
-        assert(a = b + c);
+        assert(b = in());
+        while (b > 0) {
+                assert(b = b - 1);
+                assert(hello(b));
+        }
         
         return 0;
 }

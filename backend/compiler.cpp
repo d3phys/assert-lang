@@ -58,8 +58,10 @@ static ast_node *compile_call  (ast_node *root, stack *symtabs, ac_virtual_memor
 static ast_node *compile_stmt  (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
 static ast_node *compile_define(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
 
-static ast_node *compile_load_num(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static void compile_start(stack *symtabs, ac_virtual_memory *vm);
 
+static ast_node *compile_load_num(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+ 
 static ast_node *compile_sym_load (ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
 static ast_node *compile_sym_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
 
@@ -95,6 +97,22 @@ $$
 $$
 
         declare_functions(tree, &symtab);
+
+        ac_symbol *functions = (ac_symbol *)func_scope.data;
+        for (size_t i = 0; i < func_scope.size; i++) {
+                if (!strncmp(functions[i].ident, "main", sizeof("main"))) {
+                        vm.main = functions + i;
+                        break;
+                }
+        }
+
+        if (!vm.main) {
+                fprintf(stderr, ascii(RED, "Can't find main function. Abort.\n"));
+                free_array(&func_scope, sizeof(ac_symbol));
+                destruct_stack(&symtab);
+                return tree;
+        }
+        
         dump_symtab(&symtab);
 $$
         array globals_scope = {};
@@ -110,8 +128,18 @@ $       (dump_symtab(&symtab);)
 $$
         free_array(&globals_scope, sizeof(ac_symbol));
 $$
+        if (vm.reg.stack) {
+                fprintf(stderr, ascii(RED, "Unbalanced register stack (vm.reg.stack)\n"));
+                free_array(&func_scope, sizeof(ac_symbol));
+                free_array(&globals_scope, sizeof(ac_symbol));
+                destruct_stack(&symtab);
+                return tree;
+        }
+        
         compile_stmt(tree, &symtab, &vm);      
-
+$$
+        compile_start(&symtab, &vm);
+        syms[SYM_START].value = vm._start;
 $$
         free_array(&func_scope, sizeof(ac_symbol));
         free_array(&globals_scope, sizeof(ac_symbol));
@@ -126,6 +154,55 @@ inline static int is_global_scope(stack *symtabs)
 $$
         fprintf(logs, html(GREEN, "IS_GLOBAL: %d\n"), symtabs->size < 2);
         return symtabs->size < 3;
+}
+
+static void compile_start(stack *symtabs, ac_virtual_memory *vm) 
+{
+        assert(symtabs);
+        assert(vm);
+
+        array *global_symtab = (array *)top_stack(symtabs);
+        ac_symbol *globals = (ac_symbol *)global_symtab->data;
+        
+        vm->_start = vm->secs[SEC_TEXT].size;
+
+        /* call rel */
+        struct __attribute__((packed)) {
+                const ubyte opcode = 0xe8;
+                imm32 imm          = 0;
+        } call;
+        
+        /* Compile globals initialization */
+        for (int i = 0; i < global_symtab->size; i++) {
+                call.imm = globals[i].offset - vm->secs[SEC_TEXT].size - sizeof(call);
+                encode(vm, &call, sizeof(call));                
+        }
+
+        /* call main */
+        call.imm = vm->main->offset - vm->secs[SEC_TEXT].size - sizeof(call);
+        encode(vm, &call, sizeof(call));  
+
+        /* mov rax, 0x3c */
+        struct __attribute__((packed)) {
+                const ubyte opcode = 0xb8;
+                const imm32 imm    = 0x3c;
+        } mov2rax;
+        encode(vm, &mov2rax, sizeof(mov2rax));
+
+        /* xor rdi, rdi */
+        struct __attribute__((packed)) {
+                const ubyte rex    = 0x48;
+                const ubyte opcode = 0x31;
+                const ie64_modrm modrm  = { .rm = IE64_RDI, .reg = IE64_RDI, .mod = 0b11 };
+        } xor_rdi;
+        encode(vm, &xor_rdi, sizeof(xor_rdi));
+
+        /* syscall */
+        struct __attribute__((packed)) {
+                const ubyte prefix = 0x0f;
+                const ubyte opcode = 0x05;
+        } syscall;
+        encode(vm, &syscall, sizeof(syscall));
 }
 
 static ast_node *compile_assign(ast_node *root, stack *symtabs, ac_virtual_memory *vm)
@@ -192,10 +269,9 @@ static ast_node *compile_expr(ast_node *root, stack *symtabs, ac_virtual_memory 
         assert(root);
         assert(symtabs); 
         ast_node *error = nullptr;
-        /*
+
         if (keyword(root) == AST_CALL)
                 return compile_call(root, symtabs, vm);
-        */
 $$
         if (keyword(root)) {
                 if (root->left) {
@@ -628,7 +704,12 @@ $$
                 }
 $$
 
-                mov.imm = -sym->addend - sym->info;
+                if (sym->addend >= 0){
+                        mov.imm = -sym->addend - sym->info;
+                } else {
+                        mov.imm = -sym->addend;
+                }
+
 $$
                 encode(vm, &mov, sizeof(mov));
                 return success(root);
@@ -656,8 +737,13 @@ $$
         }
 $$
         fprintf(stderr, "SYM: %s\n", sym->ident);
-        mov.imm = -sym->addend - sym->info;
-$$
+        
+        if (sym->addend >= 0){
+                mov.imm = -sym->addend - sym->info;
+        } else {
+                mov.imm = -sym->addend;
+        }
+
         encode(vm, &mov, sizeof(mov));
         return success(root);
 }
@@ -817,6 +903,16 @@ $$
 
         size_t n_args = sym->info;
 
+                     /* push r9 */
+        struct __attribute__((packed)) {
+                const ubyte rex = 0x41; /* 1000001b */
+                ubyte opcode    = 0x50;
+        } push_r9;
+
+        push_r9.opcode += vm->reg.stack;
+        encode(vm, &push_r9, sizeof(push_r9));    
+       
+
         /* align stack */
         if (n_args % 2) {
                 n_args++;
@@ -831,8 +927,18 @@ $$
                 encode(vm, &align, sizeof(align));        
         }
 
+        ast_node *param = root->right;
         /* push arguments */
         for (size_t i = 0; i < sym->info; i++) {
+                if (!param)
+                        return syntax_error(root);
+                        
+                error = compile_expr(param->right, symtabs, vm);
+                if (error)
+                        return error;
+
+                param = param->left;
+        
                 /* push */
                 struct __attribute__((packed)) {
                         const ubyte rex = 0x41; /* 1000001b */
@@ -876,6 +982,16 @@ $$
         add_rsp.imm = n_args * 0x8;
         encode(vm, &add_rsp, sizeof(add_rsp)); 
 $$
+
+        /* push r9 */
+        struct __attribute__((packed)) {
+                const ubyte rex = 0x41; /* 1000001b */
+                ubyte opcode    = 0x58;
+        } pop_r9;
+
+        pop_r9.opcode += vm->reg.stack - 1;
+        encode(vm, &pop_r9, sizeof(pop_r9));
+
         return success(root);        
 }
 
@@ -893,7 +1009,7 @@ $$
         size_t n_args = sym->info;
 
         /* align stack */
-        if (n_args % 2) {
+        if (n_args % 2 == 0) {
                 n_args++;
                 /* sub rsp, 0x8 */
                 struct __attribute__((packed)) {
@@ -1063,7 +1179,12 @@ $$
                 return syntax_error(root);
         case AST_CALL:
 $$
-                return compile_call(root->right, symtabs, vm);
+                error = compile_call(root->right, symtabs, vm);
+                if (error)
+                        return error;
+                vm->reg.stack--;
+                
+                return success(root);
         case AST_OUT:
 $$              error = compile_expr(stmt->right, symtabs, vm);
                 if (error)
@@ -1134,13 +1255,13 @@ $$
                         .vis    = AC_VIS_LOCAL,
                         .ident  = ast_ident(param->right),
                         .node   = name,
-                        .offset = 8 * (n_params + 1),
+                        .addend = -8 * (n_params + 1),
+                        .offset = 0,
                         .info   = 8,               
                 };
 $$  
                 array_push((array *)top_stack(symtabs), &symbol, sizeof(ac_symbol));
 $$
-
                 n_params--;                            
                 param = param->left;
                 require(param, AST_PARAM);

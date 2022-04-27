@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         dump_tokens(toks);
 
         clock_t end = clock();
-        fprintf(stderr, ascii(blue, "Tokens created: %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
+        fprintf(stderr, ascii(BLUE, "Tokens created: %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
         mmap_free(&md);
 
 $       (dump_tokens(toks);)
@@ -48,7 +48,7 @@ $       (dump_array(&names, sizeof(char *), array_string);)
         token *iter = toks;
         ast_node *tree = grammar_rule(&iter);
         start = clock();
-        fprintf(stderr, ascii(blue, "Tree created:   %lf sec\n"), (start - end) / CLOCKS_PER_SEC);
+        fprintf(stderr, ascii(BLUE, "Tree created:   %lf sec\n"), (start - end) / CLOCKS_PER_SEC);
 
         if (!tree) {
                 free(toks);
@@ -59,7 +59,7 @@ $       (dump_array(&names, sizeof(char *), array_string);)
 
                 free_array(&names, sizeof(char *));
 
-                fprintf(stderr, ascii(red, "..................\n"
+                fprintf(stderr, ascii(RED, "..................\n"
                                            "Compilation failed\n"));
                 return EXIT_FAILURE;
         }
@@ -71,7 +71,7 @@ $       (dump_array(&names, sizeof(char *), array_string);)
         save_ast_tree(out, tree);
 
         end = clock();
-        fprintf(stderr, ascii(blue, "Tree saved:     %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
+        fprintf(stderr, ascii(BLUE, "Tree saved:     %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
         free(toks);
 
         char **data = (char **)names.data;
@@ -83,19 +83,19 @@ $       (dump_array(&names, sizeof(char *), array_string);)
         fclose(out);
 
         end = clock();
-        fprintf(stderr, ascii(green, "Abstract syntax tree compiled: %lf sec\n"), (end - init) / CLOCKS_PER_SEC);
+        fprintf(stderr, ascii(GREEN, "Abstract syntax tree compiled: %lf sec\n"), (end - init) / CLOCKS_PER_SEC);
         return EXIT_SUCCESS;
 }
 
 static int input_error()
 {
-        fprintf(stderr, ascii(red, "There must be 3 arguments\n"));
+        fprintf(stderr, ascii(RED, "There must be 3 arguments\n"));
         return EXIT_FAILURE;
 }
 
 static int file_error(const char *file_name)
 {
-        fprintf(stderr, ascii(red, "Can't open file %s: %s\n"), 
+        fprintf(stderr, ascii(RED, "Can't open file %s: %s\n"), 
                         file_name, strerror(errno));
 
         return EXIT_FAILURE;

@@ -917,7 +917,7 @@ static ast_node *syntax_error(token **toks)
 {
         assert(toks);
 
-        fprintf(stderr, ascii(red, "Syntax error -- "));
+        fprintf(stderr, ascii(RED, "Syntax error -- "));
         print_token(*toks);
         //dump_tokens(*toks)
         return nullptr;
@@ -927,7 +927,7 @@ static ast_node *core_error(token **toks)
 {
         assert(toks);
 
-        fprintf(stderr, ascii(red, "Core error -- "));
+        fprintf(stderr, ascii(RED, "Core error -- "));
         print_token(*toks);
         return nullptr;
 }
@@ -987,10 +987,10 @@ static void print_token(token *toks)
                                 toks->data.keyword, toks->data.keyword);
                 break;
         case TOKEN_NUMBER:
-                fprintf(stderr, ascii(blue, "number: %lg\n"), toks->data.number);
+                fprintf(stderr, ascii(BLUE, "number: %lg\n"), toks->data.number);
                 break;
         case TOKEN_IDENT:
-                fprintf(stderr, ascii(white, "ident: %s [%p]\n"), toks->data.ident, 
+                fprintf(stderr, ascii(WHITE, "ident: %s [%p]\n"), toks->data.ident, 
                                                                   toks->data.ident);
                 break;
         default:
