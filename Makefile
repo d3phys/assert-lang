@@ -78,6 +78,12 @@ make: subdirs
 			      ast/ast.o backend/backend.o trans/trans.o
 	./build	
 
+elf: back
+	./tr examples/fucktorial test_tree 
+	./cum test_tree asm 
+	ld -o test asm asslib.o /lib64/libc.so.6 -I/lib64/ld-linux-x86-64.so.2 
+	
+
 tback: subdirs backend/elf64test.o
 	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/backend.o \

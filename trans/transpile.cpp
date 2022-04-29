@@ -59,7 +59,7 @@ static ast_node *success(ast_node *root)
 static ast_node *trans_error(ast_node *root)
 {
         assert(root);
-        fprintf(stderr, ascii(red, "Syntax error:\n"));
+        fprintf(stderr, ascii(RED, "Syntax error:\n"));
         save_ast_tree(stderr, root);
         $(dump_tree(root);)
         fprintf(stderr, "\n");
