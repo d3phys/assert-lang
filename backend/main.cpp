@@ -59,14 +59,14 @@ int main(int argc, char *argv[])
 
         create_elf64(secs, syms, out_file);
         
+fail:
         for (size_t i = 0; i < SEC_NUM; i++)
                 if (secs[i].data)
                         section_free(secs + i);
-        
+
         free(syms);
         free(secs);
         
-fail:
         char **data = (char **)idents.data;
         for (size_t i = 0; i < idents.size; i++) {
                 free(data[i]);
