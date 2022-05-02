@@ -59,19 +59,16 @@ static ast_node *compile_define(ast_node *root, stack *symtabs, ac_virtual_memor
 static void compile_start(stack *symtabs, ac_virtual_memory *vm);
 
 static ast_node *compile_load_num(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
- 
-static ast_node *compile_sym_load (ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
-static ast_node *compile_sym_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
 
-static ast_node *compile_mov_global(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym, bool store);
-static ast_node *compile_mov_local (ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym, bool store);
+static ast_node *compile_stack_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
+static ast_node *compile_stack_load (ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
+
+static ast_node *compile_data_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
+static ast_node *compile_data_load (ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym);
 
 static void dump_symtab(stack *symtabs); 
 
 static ast_node *declare_functions(ast_node *root, stack *symtabs);
-
-
-//static ast_node *compile_expr  (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
 
 static char *encode(ac_virtual_memory *vm, void *instruction, size_t size);
 
@@ -130,14 +127,14 @@ $       (dump_symtab(&symtab);)
 $$
         free_array(&globals_scope, sizeof(ac_symbol));
 $$
-        if (vm.reg.stack) {
+        /*if (vm.reg.stack) {
                 fprintf(stderr, ascii(RED, "Unbalanced register stack (vm.reg.stack)\n"));
                 free_array(&func_scope, sizeof(ac_symbol));
                 free_array(&globals_scope, sizeof(ac_symbol));
                 destruct_stack(&symtab);
                 return tree;
-        }
-
+        }*/
+        vm.reg.stack = 0;
         compile_stmt(tree, &symtab, &vm);      
 $$
         compile_start(&symtab, &vm);
@@ -147,7 +144,6 @@ $$
         free_array(&globals_scope, sizeof(ac_symbol));
         destruct_stack(&symtab);
 $$
-        
         return error;
 }
 
@@ -244,6 +240,37 @@ static void encode_syscall(ac_virtual_memory *vm, const ubyte rax)
         encode(vm, &__syscall, sizeof(__syscall));
 }
 
+static ast_node *compile_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
+{
+        assert(vm);
+        assert(sym);
+        assert(root);
+        assert(symtabs); 
+        ast_node *error = nullptr;
+
+        if (sym->vis == AC_VIS_LOCAL) {
+                return compile_stack_store(root, symtabs, vm, sym);      
+        } else if (sym->vis == AC_VIS_GLOBAL) {
+                
+                error = compile_data_store(root, symtabs, vm, sym);
+                if (error)
+                        return error;
+
+                /* Compile ret for the startup initialization */
+                if (is_global_scope(symtabs)) {
+                        struct __attribute__((packed)) {
+                                ubyte opcode = 0xc3;     
+                        } __ret;                
+
+                        encode(vm, &__ret, sizeof(__ret));
+                }
+
+                return success(root);
+        }        
+
+        return syntax_error(root);
+}
+
 static ast_node *compile_assign(ast_node *root, stack *symtabs, ac_virtual_memory *vm)
 {
         assert(vm);
@@ -259,48 +286,48 @@ $$
 $$
         require_ident(root->left);
 $$
-        ac_symbol *sym = find_symbol(symtabs, ast_ident(root->left));
-        if (sym) {
+        ac_symbol *exist = find_symbol(symtabs, ast_ident(root->left));
+        if (exist) {
+                /* Can't reassign variables at global scope */
                 if (is_global_scope(symtabs))
                         return syntax_error(root);
-                        
-                return compile_sym_store(root->left, symtabs, vm, sym);
+
+                return compile_store(root->left, symtabs, vm, exist);
         }
 $$
-        int type = AC_SYM_VAR;
-        int vis  = AC_VIS_LOCAL;
-        int sec  = SEC_NULL;
-$$
-        ptrdiff_t offset = 0x0;
-        size_t size = 8;
-        ast_node *cap = root->left->right;
-        if (cap) {
-                require_number(cap);
-                size = 8 * (ast_number(cap) + 1);
-        }
-$$
-        if (is_global_scope(symtabs)) {
-                vis = AC_VIS_GLOBAL;
-                sec = SEC_BSS;       
-        }
-$$
-        ac_symbol symbol = {
-                .type   = type,
-                .vis    = vis,
+        ac_symbol sym = {
+                .type   = AC_SYM_VAR,
+                .vis    = AC_VIS_LOCAL,
                 .ident  = ast_ident(root->left),
                 .node   = root,
-                .offset = offset,
-                .info   = size,               
+                .addend = 0,
+                .offset = 0,
+                .info   = 8,               
         };
 $$
-        symbol.addend = vm->secs[sec].size;
-        vm->secs[sec].size += size;
-
-        array_push((array *)top_stack(symtabs), &symbol, sizeof(ac_symbol));
+        ast_node *size = root->left->right;
+        if (size) {
+                require_number(size);
+                sym.info = 8 * (ast_number(size) + 1);
+        }
 $$
+        elf64_section *sec = nullptr;
+        if (is_global_scope(symtabs)) {
+                sym.vis    = AC_VIS_GLOBAL;
+                sec = vm->secs + SEC_BSS;
+                sym.addend = sec->size;
+        } else {
+                sym.vis    = AC_VIS_LOCAL;
+                sec = vm->secs + SEC_NULL;
+                sym.addend = - sec->size - sym.info; 
+        }
+        
+        sec->size += sym.info;
+$$
+        array_push((array *)top_stack(symtabs), &sym, sizeof(ac_symbol));
 $       (dump_symtab(symtabs);)
-
-        return compile_sym_store(root->left, symtabs, vm, &symbol);
+$$
+        return compile_store(root->left, symtabs, vm, &sym);
 }
 
 static ast_node *compile_expr_add(ast_node *root, stack *symtabs, ac_virtual_memory *vm)
@@ -524,11 +551,16 @@ $$
                 return compile_load_num(root, symtabs, vm);
         
         if (root->type == AST_NODE_IDENT) {
-                ac_symbol *symbol = find_symbol(symtabs, ast_ident(root));
-                if (!symbol)
+                ac_symbol *sym = find_symbol(symtabs, ast_ident(root));
+                if (!sym)
                         return syntax_error(root);
 
-                return compile_sym_load(root, symtabs, vm, symbol);
+                if (sym->vis == AC_VIS_LOCAL)
+                        return compile_stack_load(root, symtabs, vm, sym);
+                else if (sym->vis == AC_VIS_GLOBAL)
+                        return compile_data_load (root, symtabs, vm, sym);
+
+                return syntax_error(root);
         }
 
         switch (keyword(root)) {
@@ -738,227 +770,220 @@ $$
         return success(root);
 }
 
-static ast_node *compile_mov_local(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym, bool store)
+static ast_node *compile_stack_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
 {
         assert(vm);
         assert(sym);
         assert(root);
-$$
-
+        
         ast_node *error = nullptr;
-        require_ident(root);
-$$
+        require_ident(root);        
+
         if (root->right) {
-$$        
-                /* mov %reg <- [%rbp + %reg * 8 + addend] */
+
+                ast_node *error = compile_expr(root->right, symtabs, vm);
+                if (error)
+                        return error;
+
                 struct __attribute__((packed)) {
                         const ubyte rex    = 0b01001110;
-                        ubyte opcode       = 0x00;
+                        const ubyte opcode = 0x89;
                         ie64_modrm modrm   = { .rm   = 0b100, .reg = 0b000, .mod = 0b10 };
                         ie64_sib sib       = { .base = IE64_RBP, .index = 0b000, .scale = 0b11 };  
                         imm32 imm          = 0;   
-                } mov;
-$$
-                if (store) {
-                        mov.opcode = 0x89;
-$$                  
-                        mov.sib.index = vm->reg.stack;
-                        vm->reg.stack--;
-$$                      
-                        mov.modrm.reg = vm->reg.stack;               
-                        vm->reg.stack--;                        
-                } else {
-                        mov.opcode = 0x89;
+                } __mov64;
+      
+                __mov64.sib.index = vm->reg.stack--;
+                __mov64.modrm.reg = vm->reg.stack--;               
+                __mov64.imm       = sym->addend;
 
-                        mov.sib.index = vm->reg.stack;
-                        mov.modrm.reg = vm->reg.stack;               
-                }
-$$
-
-                if (sym->addend >= 0){
-                        mov.imm = -sym->addend - sym->info;
-                } else {
-                        mov.imm = -sym->addend;
-                }
-
-$$
-                encode(vm, &mov, sizeof(mov));
+                /* mov [rbp + 8*r + imm], r */
+                encode(vm, &__mov64, sizeof(__mov64));
                 return success(root);
-        } 
-
-        /* mov %reg <- [%rbp + addend] */
-        struct __attribute__((packed)) {
-                const ubyte rex    = 0x4c; //0b01001100;
-                ubyte opcode       = 0x00;
-                ie64_modrm modrm   = { .rm = IE64_RBP, .reg = 0b000, .mod = 0b10 };
-                imm32 imm          = 0;   
-        } mov;         
-$$
-
-        if (store) {
-$$
-                mov.opcode = 0x89;
-                mov.modrm.reg = vm->reg.stack;
-                vm->reg.stack--; 
+                
         } else {
-$$
-                mov.opcode = 0x8b;
-                vm->reg.stack++; 
-                mov.modrm.reg = vm->reg.stack;
-        }
-$$
-        fprintf(stderr, "SYM: %s\n", sym->ident);
-        
-        if (sym->addend >= 0){
-                mov.imm = -sym->addend - sym->info;
-        } else {
-                mov.imm = -sym->addend;
-        }
 
-        encode(vm, &mov, sizeof(mov));
-        return success(root);
-}
+                struct __attribute__((packed)) {
+                        const ubyte rex    = 0x4c; /* 1001100b */
+                        const ubyte opcode = 0x89;
+                        ie64_modrm modrm   = { .rm = IE64_RBP, .reg = 0b000, .mod = 0b10 };
+                        imm32 imm          = 0;   
+                } __mov64;
 
-static ast_node *compile_mov_global(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym, bool store)
+                __mov64.modrm.reg = vm->reg.stack--;
+                __mov64.imm       = sym->addend;
+
+                /* mov [rbp + imm], r */
+                encode(vm, &__mov64, sizeof(__mov64));
+                return success(root);
+        }
+}      
+
+static ast_node *compile_stack_load(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
 {
         assert(vm);
         assert(sym);
         assert(root);
-
+        
         ast_node *error = nullptr;
-        require_ident(root);
-$$
+        require_ident(root);        
 
-        Elf64_Rela rela = {
-                .r_offset = vm->secs[SEC_TEXT].size, 
-                .r_info   = ELF64_R_INFO(SEC_BSS, R_X86_64_32S), 
-                .r_addend = sym->addend,
-        }; 
-$$    
         if (root->right) {
 
-                /* mov %reg <- section[addend] */
+                ast_node *error = compile_expr(root->right, symtabs, vm);
+                if (error)
+                        return error;
+                        
+                struct __attribute__((packed)) {
+                        const ubyte rex    = 0b01001110;
+                        const ubyte opcode = 0x8b;
+                        ie64_modrm modrm   = { .rm   = 0b100, .reg = 0b000, .mod = 0b10 };
+                        ie64_sib sib       = { .base = IE64_RBP, .index = 0b000, .scale = 0b11 };  
+                        imm32 imm          = 0;   
+                } __mov64;
+      
+                __mov64.sib.index = vm->reg.stack;
+                __mov64.modrm.reg = vm->reg.stack;               
+                __mov64.imm       = sym->addend;
+
+                /* mov r, [rbp + 8*r + imm] */
+                encode(vm, &__mov64, sizeof(__mov64));
+                return success(root);
+                
+        } else {
+        
+                struct __attribute__((packed)) {
+                        const ubyte rex    = 0x4c; /* 1001100b */
+                        const ubyte opcode = 0x8b;
+                        ie64_modrm modrm   = { .rm = IE64_RBP, .reg = 0b000, .mod = 0b10 };
+                        imm32 imm          = 0;   
+                } __mov64;
+
+                __mov64.modrm.reg = (++vm->reg.stack);
+                __mov64.imm       = sym->addend;
+
+                /* mov r, [rbp + imm] */
+                encode(vm, &__mov64, sizeof(__mov64));
+                return success(root);
+        }
+}      
+
+static ast_node *compile_data_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
+{
+        assert(vm);
+        assert(sym);
+        assert(root);
+        
+        ast_node *error = nullptr;
+        require_ident(root); 
+
+        Elf64_Rela rela = {
+                .r_offset = 0, 
+                .r_info   = ELF64_R_INFO(SYM_BSS, R_X86_64_32S), 
+                .r_addend = sym->addend,
+        };  
+
+        if (root->right) {
+
+               error = compile_expr(root->right, symtabs, vm);
+                if (error)
+                        return error;
+                                
                 struct __attribute__((packed)) {
                         const ubyte rex    = 0x4e; /* 1001110b */
-                        ubyte opcode       = 0x00;
+                        const ubyte opcode = 0x89;
                         ie64_modrm modrm   = { .rm = 0b100, .reg = 0b000, .mod = 0b00 };
                         ie64_sib sib       = { .base = 0b101, .index = 0b000, .scale = 0b11 };
                         imm32 imm          = 0;   
-                } mov;          
+                } __mov64;          
 $$
-                rela.r_offset += 0x04;
-
-                if (store) {
-                        mov.opcode = 0x89;
-                        mov.sib.index = vm->reg.stack;
-                        vm->reg.stack--;
+                rela.r_offset = rip(vm) + 0x04;
+$$                
+                __mov64.sib.index = vm->reg.stack--;
+                __mov64.modrm.reg = vm->reg.stack--;
 $$
-                        mov.modrm.reg = vm->reg.stack;
-                        vm->reg.stack--;                
-                } else {
-                        mov.opcode = 0x8b;
-                        mov.sib.index = vm->reg.stack;
-                        mov.modrm.reg = vm->reg.stack;                                        
-                }
-$$     
-                encode(vm, &mov, sizeof(mov));
-
-        } else {
-$$
+                /* mov [8*r + imm], r */
+                encode(vm, &__mov64, sizeof(__mov64));       
                 
-                /* mov %reg <- section[%reg + addend] */
+        } else {
+        
                 struct __attribute__((packed)) {
                         const ubyte rex    = 0x4c; /* 1001100b */
-                        ubyte opcode       = 0x00;
+                        const ubyte opcode = 0x89;
                         ie64_modrm modrm   = { .rm = 0b100, .reg = 0b000, .mod = 0b00 };
                         const ie64_sib sib = { .base = 0b101, .index = 0b100, .scale = 0b00 };
                         imm32 imm          = 0;   
-                } mov;          
+                } __mov64;          
 $$
-                rela.r_offset += 0x04;
+                rela.r_offset = rip(vm) + 0x04;
 
-                if (store) {
-                        mov.opcode = 0x89;
-                        mov.modrm.reg = vm->reg.stack;
-                        vm->reg.stack--;
-$$ 
-                } else {
-                        mov.opcode = 0x8b; 
-                        vm->reg.stack++;
-                        mov.modrm.reg = vm->reg.stack;
-                }
+                __mov64.modrm.reg = vm->reg.stack--;
 $$     
-                encode(vm, &mov, sizeof(mov));
-        }                                              
+                /* mov [imm], r */
+                encode(vm, &__mov64, sizeof(__mov64));
+        }
 $$
         section_memcpy(vm->secs + SEC_RELA_TEXT, &rela, sizeof(Elf64_Rela));
-
-        /* Encode ret for the start up initialization */
-        if (is_global_scope(symtabs)) {
-                /* ret */
-                struct __attribute__((packed)) {
-                        ubyte opcode = 0xc3;     
-                } ret;
-                
-                encode(vm, &ret, sizeof(ret));   
-        }      
-
-        
-        return success(root);       
+        return success(root);
 }
 
-
-static ast_node *compile_sym_load(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
+static ast_node *compile_data_load(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
 {
         assert(vm);
-        assert(root);
-        assert(symtabs);
-
-        require_ident(root);
-$$
-
-        if (root->right) {
-                ast_node *error = compile_expr(root->right, symtabs, vm);
-                if (error)
-                        return error;
-        }
-$$
-
-        if (sym->vis == AC_VIS_LOCAL)
-                return compile_mov_local (root, symtabs, vm, sym, false);
-        else if (sym->vis == AC_VIS_GLOBAL)
-                return compile_mov_global(root, symtabs, vm, sym, false);
-$$
-        
-        return syntax_error(root);
-}
-
-static ast_node *compile_sym_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
-{
-        assert(vm);
-        assert(root);
-        assert(symtabs);
         assert(sym);
-$$
+        assert(root);
+        
+        ast_node *error = nullptr;
+        require_ident(root); 
 
-        require_ident(root);
-$$
+        Elf64_Rela rela = {
+                .r_offset = 0, 
+                .r_info   = ELF64_R_INFO(SYM_BSS, R_X86_64_32S), 
+                .r_addend = sym->addend,
+        };  
 
         if (root->right) {
+
                 ast_node *error = compile_expr(root->right, symtabs, vm);
                 if (error)
                         return error;
-        }
+                                
+                struct __attribute__((packed)) {
+                        const ubyte rex    = 0x4e; /* 1001110b */
+                        const ubyte opcode = 0x8b;
+                        ie64_modrm modrm   = { .rm = 0b100, .reg = 0b000, .mod = 0b00 };
+                        ie64_sib sib       = { .base = 0b101, .index = 0b000, .scale = 0b11 };
+                        imm32 imm          = 0;   
+                } __mov64;          
 $$
-
-        if (sym->vis == AC_VIS_LOCAL) {
-                return compile_mov_local (root, symtabs, vm, sym, true);
-        } else if (sym->vis == AC_VIS_GLOBAL) {
-                return compile_mov_global(root, symtabs, vm, sym, true);
-        }
+                rela.r_offset = rip(vm) + 0x04;
+$$                
+                __mov64.sib.index = vm->reg.stack;
+                __mov64.modrm.reg = vm->reg.stack;
 $$
+                /* mov r, [8*r + imm] */
+                encode(vm, &__mov64, sizeof(__mov64));       
+                
+        } else {
         
-        return syntax_error(root);
+                struct __attribute__((packed)) {
+                        const ubyte rex    = 0x4c; /* 1001100b */
+                        const ubyte opcode = 0x8b;
+                        ie64_modrm modrm   = { .rm = 0b100, .reg = 0b000, .mod = 0b00 };
+                        const ie64_sib sib = { .base = 0b101, .index = 0b100, .scale = 0b00 };
+                        imm32 imm          = 0;   
+                } __mov64;          
+$$
+                rela.r_offset = rip(vm) + 0x04;
+
+                __mov64.modrm.reg = (++vm->reg.stack);
+$$     
+                /* mov r, [imm] */
+                encode(vm, &__mov64, sizeof(__mov64));
+        }
+$$
+        section_memcpy(vm->secs + SEC_RELA_TEXT, &rela, sizeof(Elf64_Rela));
+        return success(root);
 }
 
 static ast_node *compile_call_begin(ast_node *root, ac_virtual_memory *vm, int *pushed)
@@ -1198,7 +1223,6 @@ static ast_node *compile_stmt(ast_node *root, stack *symtabs, ac_virtual_memory 
         assert(symtabs);
 
         ast_node *error = nullptr;
-$$
         require(root, AST_STMT);
 
         if (root->left) {
@@ -1225,6 +1249,7 @@ $$
                 error = compile_call(root->right, symtabs, vm);
                 if (error)
                         return error;
+
                 vm->reg.stack--;              
                 return success(root);
                 
@@ -1236,14 +1261,13 @@ $$              error = compile_expr(stmt->right, symtabs, vm);
                 error = compile_stdcall(stmt, symtabs, vm, SYM_PRINT);
                 if (error)
                         return syntax_error(root);
-                /* Don't need return value */
+                /* Don(t need return value */
                 vm->reg.stack--;
                 return success(root);
                 
         case AST_RETURN:
                 return compile_return(stmt, symtabs, vm);
         default:
-$$
                 return syntax_error(root);
         }
 }
@@ -1255,17 +1279,13 @@ static ast_node *compile_define(ast_node *root, stack *symtabs, ac_virtual_memor
         assert(symtabs);
 $$
         ast_node *error = nullptr;
-$$
         require(root, AST_DEFINE);
 $$
-        
         ast_node *function = root->left;
         require(function, AST_FUNC);
 $$
-
         ast_node *name = function->left;
         require_ident(name);   
-$$
 $$
         ac_symbol *func_sym = find_symbol(symtabs, ast_ident(name));
         if (!func_sym)
@@ -1274,13 +1294,13 @@ $$
         func_sym->offset = vm->secs[SEC_TEXT].size;
 $$
         dump_symtab(symtabs);
+
         array symtab = {};
         push_stack(symtabs, &symtab);
 $$
         dump_symtab(symtabs);
 
         ptrdiff_t n_params = func_sym->info;
-        
 $$
         ast_node *param = function->right;
         while (param) {
@@ -1295,7 +1315,7 @@ $$
                         .vis    = AC_VIS_LOCAL,
                         .ident  = ast_ident(param->right),
                         .node   = name,
-                        .addend = -8 * (n_params + 1),
+                        .addend = 8 * (n_params + 1),
                         .offset = 0,
                         .info   = 8,               
                 };
@@ -1303,6 +1323,7 @@ $$
                 array_push((array *)top_stack(symtabs), &symbol, sizeof(ac_symbol));
 $$
                 n_params--;                            
+
                 param = param->left;
                 require(param, AST_PARAM);
         }
@@ -1311,31 +1332,31 @@ $$
         if (n_params)
                 return syntax_error(root);
 $$
-        /* push %rbp */
+        /* push rbp */
         struct __attribute__((packed)) {
                 const ubyte opcode = 0x50 + IE64_RBP;
-        } push_rbp;
+        } __push;
 $$
-        encode(vm, &push_rbp, sizeof(push_rbp));
+        encode(vm, &__push, sizeof(__push));
 $$
         /* mov rbp, rsp */         
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48;
                 const ubyte opcode = 0x89;
-                ie64_modrm modrm = { .rm = IE64_RBP, .reg = IE64_RSP, .mod = 0b11 };         
-        } mov_rsp_rbp;
+                ie64_modrm modrm   = { .rm = IE64_RBP, .reg = IE64_RSP, .mod = 0b11 };         
+        } __mov64;
 $$
-        encode(vm, &mov_rsp_rbp, sizeof(mov_rsp_rbp));
+        encode(vm, &__mov64, sizeof(__mov64));
 $$
-        /* sub rsp, text size */
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48; /* 1001000b */
                 const ubyte opcode = 0x81;
                 ie64_modrm modrm   = { .rm = IE64_RSP, .reg = 0b101, .mod = 0b11 };
                 imm32 imm          = 0;
-        } sub_rsp; 
+        } __sub; 
 
-        ptrdiff_t sub_rsp_addr = encode(vm, &sub_rsp, sizeof(sub_rsp)) - vm->secs[SEC_TEXT].data;
+        ptrdiff_t __sub_addr = rip(vm);
+        encode(vm, &__sub, sizeof(__sub));
 $$
         error = compile_stmt(root->right, symtabs, vm);
         if (error) {
@@ -1343,9 +1364,9 @@ $$
                 return error;
         }
 $$
-        /* Patch sub rbp, size */
-        sub_rsp.imm = elf64_align(vm->secs[SEC_NULL].size, 0x10);
-        memcpy(sub_rsp_addr + vm->secs[SEC_TEXT].data, &sub_rsp, sizeof(sub_rsp));
+        /* sub rbp, stack frame size */
+        __sub.imm = elf64_align(rip(vm), 0x10);
+        patch(vm, __sub_addr, &__sub, sizeof(__sub));
 
         pop_stack(symtabs);
         free_array(&symtab, sizeof(ac_symbol));
