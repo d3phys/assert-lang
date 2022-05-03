@@ -390,13 +390,12 @@ static ast_node *compile_expr_div(ast_node *root, stack *symtabs, ac_virtual_mem
         __mov32.modrm.reg = (vm->reg.stack - 1);
         encode(vm, &__mov32, sizeof(__mov32));
 
-        /* xor rdx, rdx */
+        /* Sign extend rax to rdx:rax */
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48;
-                const ubyte opcode = 0x31;
-                const ie64_modrm modrm  = { .rm = IE64_RDX, .reg = IE64_RDX, .mod = 0b11 };
-        } __xor;
-        encode(vm, &__xor, sizeof(__xor));
+                const ubyte opcode = 0x99;
+        } __cqo;
+        encode(vm, &__cqo, sizeof(__cqo));
 
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x49; /* 0b1001001 */
