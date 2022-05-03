@@ -105,19 +105,21 @@ $$
                 }
         }
 
-        if (!vm.main) {
-                fprintf(stderr, ascii(RED, "Can't find main function. Abort.\n"));
-                free_array(&func_scope, sizeof(ac_symbol));
-                destruct_stack(&symtab);
-                return tree;
-        }
-        
         dump_symtab(&symtab);
 $$
         array globals_scope = {};
         push_stack(&symtab, &globals_scope);
 
-        compile_stmt(tree, &symtab, &vm);
+        if (!vm.main) {
+                fprintf(stderr, ascii(RED, "Can't find main function. Abort.\n"));
+                goto cleanup;
+        }
+        
+        error = compile_stmt(tree, &symtab, &vm);
+        if (error) {
+                fprintf(stderr, ascii(RED, "Compilation error.\n"));
+                goto cleanup;
+        }
 $$
 $       (dump_symtab(&symtab);)
 
@@ -127,19 +129,18 @@ $       (dump_symtab(&symtab);)
 $$
         free_array(&globals_scope, sizeof(ac_symbol));
 $$
-        /*if (vm.reg.stack) {
+        if (vm.reg.stack) {
                 fprintf(stderr, ascii(RED, "Unbalanced register stack (vm.reg.stack)\n"));
-                free_array(&func_scope, sizeof(ac_symbol));
-                free_array(&globals_scope, sizeof(ac_symbol));
-                destruct_stack(&symtab);
-                return tree;
-        }*/
-        vm.reg.stack = 0;
+                goto cleanup;
+        }
+        
         compile_stmt(tree, &symtab, &vm);      
 $$
         compile_start(&symtab, &vm);
         syms[SYM_START].value = vm._start;
 $$
+cleanup:
+
         free_array(&func_scope, sizeof(ac_symbol));
         free_array(&globals_scope, sizeof(ac_symbol));
         destruct_stack(&symtab);
@@ -280,11 +281,20 @@ static ast_node *compile_assign(ast_node *root, stack *symtabs, ac_virtual_memor
 $$
         require(root, AST_ASSIGN);        
 $$
+        require_ident(root->left);
+        ac_symbol sym = {
+                .type   = AC_SYM_VAR,
+                .vis    = AC_VIS_LOCAL,
+                .ident  = ast_ident(root->left),
+                .node   = root,
+                .addend = 0,
+                .offset = rip(vm),
+                .info   = 8,               
+        };
+
         error = compile_expr(root->right, symtabs, vm);
         if (error)
                 return error;
-$$
-        require_ident(root->left);
 $$
         ac_symbol *exist = find_symbol(symtabs, ast_ident(root->left));
         if (exist) {
@@ -294,16 +304,6 @@ $$
 
                 return compile_store(root->left, symtabs, vm, exist);
         }
-$$
-        ac_symbol sym = {
-                .type   = AC_SYM_VAR,
-                .vis    = AC_VIS_LOCAL,
-                .ident  = ast_ident(root->left),
-                .node   = root,
-                .addend = 0,
-                .offset = 0,
-                .info   = 8,               
-        };
 $$
         ast_node *size = root->left->right;
         if (size) {
@@ -389,6 +389,14 @@ static ast_node *compile_expr_div(ast_node *root, stack *symtabs, ac_virtual_mem
 
         __mov32.modrm.reg = (vm->reg.stack - 1);
         encode(vm, &__mov32, sizeof(__mov32));
+
+        /* xor rdx, rdx */
+        struct __attribute__((packed)) {
+                const ubyte rex    = 0x48;
+                const ubyte opcode = 0x31;
+                const ie64_modrm modrm  = { .rm = IE64_RDX, .reg = IE64_RDX, .mod = 0b11 };
+        } __xor;
+        encode(vm, &__xor, sizeof(__xor));
 
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x49; /* 0b1001001 */
