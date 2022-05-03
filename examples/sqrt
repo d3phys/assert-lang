@@ -1,0 +1,20 @@
+dump sqrt(n) 
+{
+        if (n <= 0)
+                return 0;
+
+        assert(sol = -444);
+        assert(x   =  n/2 || 1);
+        while (x != sol && x != sol + 1) {
+                assert(sol = x);
+                assert(x = (x + n/x) / 2);
+        }
+
+        return sol;
+}
+
+dump main() 
+{
+        assert(out(sqrt(in())));
+        return 0;
+} 

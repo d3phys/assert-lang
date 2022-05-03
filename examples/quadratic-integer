@@ -1,0 +1,81 @@
+assert(inv SCALE = 100);
+
+assert(inv NO_SOL  = 404);
+assert(inv INF_SOL = 8);
+
+dump main() 
+{
+        assert(a = in());
+        assert(b = in());
+        assert(c = in());
+
+        assert(solve_quadratic(a, b, c));
+
+        return 0;        
+}
+
+dump sqrt(n) 
+{
+        if (n <= 0)
+                return 0;
+                
+        assert(sol = -444);
+        assert(x   =  n/2 || 1);
+
+        while (x != sol && x != sol + 1) {
+                assert(sol = x);
+                assert(x = (x + n/x) / 2);
+        }
+
+        return sol;
+}
+
+dump solve_quadratic(a, b, c) 
+{
+        if (a == 0) 
+                return solve_linear(b, c);        
+        
+        if (c == 0) {
+                if (b == 0) {
+                        assert(out(0));
+                        return 1;
+                }
+                
+                assert(out(0));
+                return solve_linear(a, b);
+        }
+
+        assert(discr = b * b - 4 * a * c);
+
+        if (discr < 0) {
+                assert(out(NO_SOL));
+                return NO_SOL;
+        }
+
+        if (discr == 0) {
+                assert(out(-(b * SCALE) / (2 * a)));
+                return 1;
+        }
+
+        assert(discr = sqrt(discr * SCALE * SCALE));
+
+        assert(out((-b * SCALE + discr) / (2 * a)));
+        assert(out((-b * SCALE - discr) / (2 * a)));
+        return 2;
+}
+
+dump solve_linear(b, c) 
+{
+        if (b == 0) {
+                if (c != 0) {
+                        assert(out(NO_SOL));
+                        return NO_SOL;
+                } else {
+                        assert(out(INF_SOL));
+                        return INF_SOL;
+                }
+        } else {
+                assert(out(c * SCALE / b));
+                return 1;
+        }
+}
