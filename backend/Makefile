@@ -4,7 +4,7 @@
 # 2021, d3phys
 #
 
-OBJS = compiler.o elf64.o #compiler.o scope_table.o  iencode.o
+OBJS = compiler.o elf64.o
 
 backend.o: $(OBJS) subdirs
 	$(LD) -r -o $@ $(OBJS)

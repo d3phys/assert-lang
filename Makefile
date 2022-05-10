@@ -90,11 +90,11 @@ fuck: back front
 
 
 
-tback: subdirs backend/elf64test.o
+test-elf: subdirs backend/test/main.o
 	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/backend.o \
-			      frontend/frontend.o ast/ast.o backend/elf64test.o
-	./cum
+	$(CXX) $(CXXFLAGS) -o test-elf lib/lib.o backend/backend.o \
+			      frontend/frontend.o ast/ast.o backend/test/main.o
+	./test-elf
 
 front: subdirs frontend/main.o
 	$(OBJS)
