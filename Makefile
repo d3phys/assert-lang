@@ -72,11 +72,11 @@ HPATH  = $(TOPDIR)/include 	\
 
 ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 
-make: subdirs
-	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o build lib/lib.o frontend/frontend.o \
-			      ast/ast.o backend/backend.o trans/trans.o
-	./build	
+make: front back trans
+	nasm -f elf64 -o asslib.o asslib.s
+	@printf "\n\n\n\n\n\n"
+	@echo "Assert language is compiled now!"	
+	@echo "Read: https://d3phys.github.io/assert-book/"
 
 quadr: back front
 	./tr examples/quadratic-integer test_tree 
@@ -87,8 +87,6 @@ fuck: back front
 	./tr examples/fucktorial test_tree 
 	./cum test_tree asm 
 	ld -o test asm asslib.o /lib64/libc.so.6 -I/lib64/ld-linux-x86-64.so.2 
-
-
 
 test-elf: subdirs backend/test/main.o
 	$(OBJS)
@@ -113,17 +111,6 @@ trans: subdirs trans/main.o
 
 mur: subdirs
 	$(CXX) $(CXXFLAGS) -o mur utils/mur.o lib/lib.o
-
-compile: make 
-	rm tree compiled ex
-	./front code tree
-	./build
-	assembly/ass -i compiled -o ex -s
-	assembly/exe ex
-
-test: make 
-	$(CXX) $(CXXFLAGS) -o tst test/test_logs.o core/core.o lib/lib.o ast/ast.o
-	./tst
 
 touch:
 	@find $(HPATH) -print -exec touch {} \;
