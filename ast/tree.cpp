@@ -45,7 +45,8 @@ void save_ast_tree(FILE *file, ast_node *const node)
                 fprintf(file, "'%s'", ast_ident(node));
                 break;
         case AST_NODE_NUMBER:
-                fprintf(file, "%lg", ast_number(node));
+                fprintf(file, "%ld", ast_number(node));
+                fprintf(stderr, "%ld", ast_number(node));
                 break;
         case AST_NODE_KEYWORD:
                 fprintf(file, "%s", ast_keyword_string(ast_keyword(node)));
@@ -61,7 +62,7 @@ void save_ast_tree(FILE *file, ast_node *const node)
         fprintf(file, ")");
 }
 
-ast_node *set_ast_number(ast_node *n, double number)
+ast_node *set_ast_number(ast_node *n, num_t number)
 {
         assert(n);
         assert(n->type == AST_NODE_NUMBER);
@@ -97,7 +98,7 @@ ast_node *set_ast_keyword(ast_node *n, int keyword)
         return n;
 }
 
-double ast_number(ast_node *n)
+num_t ast_number(ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_NUMBER);
@@ -184,7 +185,7 @@ ast_node *create_ast_keyword(int keyword)
         return newbie;
 }
 
-ast_node *create_ast_number(double number) 
+ast_node *create_ast_number(num_t number) 
 {
         ast_node *newbie = create_ast_node(AST_NODE_NUMBER);
         if (!newbie)

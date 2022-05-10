@@ -14,7 +14,7 @@ struct token {
 
         union {
                 const char *ident;
-                double     number;
+                num_t      number;
                 int       keyword;
         } data;
 };

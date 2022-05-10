@@ -16,12 +16,8 @@ KEYWORD(RETURN, 'r', "return")
 KEYWORD(CONST, 'c', "inv")
 KEYWORD(DEFINE, 'f', "dump")
 KEYWORD(ASSERT, 'a', "assert")
-KEYWORD(COS, 0x10001, "cos")
-KEYWORD(SIN, 0x10002, "sin")
 KEYWORD(IN,  0x10003, "in")
 KEYWORD(OUT, 0x10005, "out")
-KEYWORD(SHOW, 0x10007, "show")
-KEYWORD(INT, 0x10009, "int")
 )
 
 UNLINKABLE (

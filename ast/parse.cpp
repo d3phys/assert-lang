@@ -180,7 +180,7 @@ static ast_node *read_data(char **str, array *const idents)
         ast_node *root = nullptr;
 
         char *end = *str;
-        double number = strtod(*str, &end);
+        num_t number = strtod(*str, &end);
         if (end != *str) {
                 root = create_ast_number(number);
                 if (!root)

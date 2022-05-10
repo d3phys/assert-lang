@@ -103,33 +103,6 @@ static ast_node *trans_out(FILE *file, ast_node *root)
         return success(root);
 }
 
-static ast_node *trans_show(FILE *file, ast_node *root)
-{
-        assert(file);
-        assert(root);
-        ast_node *error = nullptr;
-
-        require(root, AST_OUT);
-        write("%s", keyword_string(KW_OUT));
-        write("%s", keyword_string(KW_OPEN));
-
-        if (!root->right || !root->left)
-                return trans_error(root);
-
-        error = trans_variable(file, root->left);
-        if (error)
-                return error;
-
-        write("%s ", keyword_string(KW_COMMA));
-
-        error = trans_expr(file, root->right);
-        if (error)
-                return error;
-
-        write("%s", keyword_string(KW_CLOSE));
-        return success(root);
-}
-
 static ast_node *trans_variable(FILE *file, ast_node *root)
 {
         assert(file);
@@ -376,9 +349,6 @@ ast_node *trans_stmt(FILE *file, ast_node *root)
         case AST_OUT:
                 error = trans_out(file, root->right);
                 break;
-        case AST_SHOW:
-                error = trans_show(file, root->right);
-                break;
         default:
                 return trans_error(root);
         }
@@ -467,33 +437,6 @@ static ast_node *trans_expr(FILE *file, ast_node *root)
                 return success(root);
         }
 
-        int op = 0;
-        switch (keyword(root)) {
-        case AST_SIN:
-                op = KW_SIN;
-        case AST_COS:
-                op = KW_COS;
-        case AST_INT:
-                op = KW_INT;
-        default:
-                break;
-        }
-
-        if (op) {
-                write("%s", keyword_string(op));
-                write("%s", keyword_string(KW_OPEN));
-
-                if (!root->right)
-                        return trans_error(root);
-
-                error = trans_expr(file, root->right);
-                if (error)
-                        return error;
-
-                write("%s", keyword_string(KW_CLOSE));
-                return success(root);
-        }
-
         if (keyword(root) == AST_IN) {
                 write("%s", keyword_string(KW_IN));
                 write("%s", keyword_string(KW_OPEN));
@@ -528,8 +471,6 @@ static ast_node *trans_expr(FILE *file, ast_node *root)
                 TRANS(AST_LOW, KW_LOW);
                 TRANS(AST_NOT, KW_NOT);
                 TRANS(AST_AND, KW_AND);
-                TRANS(AST_INT, KW_INT);
-                TRANS(AST_SHOW,   KW_SHOW);
                 TRANS(AST_GREAT,  KW_GREAT);
                 TRANS(AST_EQUAL,  KW_EQUAL);
                 TRANS(AST_NEQUAL, KW_NEQUAL);

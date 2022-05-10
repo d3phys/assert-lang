@@ -187,10 +187,10 @@ static token *create_number(array *const tokens, const char **str)
         assert(str && *str);
         assert(tokens);
 
-        double number = 0;
+        num_t number = 0;
         int n_skip = 0;
 
-        sscanf(*str, "%lf%n", &number, &n_skip);
+        sscanf(*str, "%ld%n", &number, &n_skip);
         token *newbie = create_token(tokens, TOKEN_NUMBER);
         if (!newbie)
                 return core_error();
@@ -226,7 +226,7 @@ void dump_tokens(const token *toks)
                                         keyword_string(toks->data.keyword), 
                                         toks->data.keyword, toks->data.keyword);
                 } else if (toks->type == TOKEN_NUMBER) {
-                        fprintf(logs, html(#ca6f1e, "number") "  | %lg\n", toks->data.number);
+                        fprintf(logs, html(#ca6f1e, "number") "  | %ld\n", toks->data.number);
                 } else if (toks->type == TOKEN_IDENT) {
                         fprintf(logs, html(green, "ident") "   | %s [%p]\n", toks->data.ident, toks->data.ident);
                 } else {

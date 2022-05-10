@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <array.h>
 
+typedef long long int num_t;
+
 enum ast_node_type {
         AST_NODE_KEYWORD  = 0x01,
         AST_NODE_IDENT    = 0x02,
@@ -26,15 +28,15 @@ struct ast_node {
 };
 
 int         ast_keyword(ast_node *n);
-double      ast_number (ast_node *n);
+num_t       ast_number (ast_node *n);
 const char *ast_ident  (ast_node *n);
 
 ast_node *set_ast_keyword(ast_node *n, int keyword);
-ast_node *set_ast_number (ast_node *n, double number);
+ast_node *set_ast_number (ast_node *n, num_t number);
 ast_node *set_ast_ident  (ast_node *n, const char *ident);
 
 ast_node *create_ast_keyword(int keyword);
-ast_node *create_ast_number(double number);
+ast_node *create_ast_number(num_t number);
 ast_node *create_ast_ident  (const char *ident);
 
 /*

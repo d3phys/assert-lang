@@ -205,7 +205,7 @@ static void compile_start(stack *symtabs, ac_virtual_memory *vm)
 
         /* Call the main function. */
         __call.imm = vm->main->offset - rip(vm) - sizeof(__call);
-        encode(vm, &__call, sizeof(__call));  
+        encode(vm, &__call, sizeof(__call));  /* emit */
 
         /* Compile exit() syscall. */
         encode_syscall(vm, 0x3c);
@@ -1004,7 +1004,7 @@ static ast_node *compile_call_begin(ast_node *root, ac_virtual_memory *vm, int *
                 struct __attribute__((packed)) {
                         const ubyte rex          = 0x48; /* 1001000b */
                         const ubyte opcode       = 0x81;
-                        const ie64_modrm modrm   = { .rm = IE64_RSP, .reg = 0b101, .mod = 0b11 };
+                        const ie64_modrm modrm   = { .rm = IE64_RSP, .reg = 0b101, .mod = 0b11 }; /* 0b11 0b101 - добавитть описание */
                         const imm32 imm          = 0x8;
                 } __sub; 
                 

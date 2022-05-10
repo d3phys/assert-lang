@@ -1,19 +1,18 @@
-grammar -> { "dump" function | "assert" "(" assign ")" } $
+grammar -> { "dump" define | "assert" "(" assign ")" } $
 
-assign -> ["inv"] ident "=" expression 
-          ["inv"] array "=" "{" expression "," { expression } ["," "..."] "}"
+assign -> ["inv"] ident "=" expression | 
+          ["inv"] array "=" expression 
+          
+define -> ident "(" [ident] {"," ident } ")" block
 
-define -> function block
-
-block  -> statement 
-         "{" statement  { statement } "}"
+block  -> statement | "{" statement  { statement } "}"
 
 statement -> "assert" "(" ( assign | "return"  expression ) ")"  |   
              "if"     "(" expression ")" block ["else" block] |
              "while"  "(" expression ")" block |
-              function
+             function
 
-function -> (ident | "show" | "in" | "display") "(" [expression] {"," expression } ")"
+function -> (ident | "out" | "in") "(" [expression] {"," expression } ")"
               
 array -> ident "[" expression "]"
 
@@ -23,15 +22,14 @@ logical -> boolean [(">"|"<"|">="|"<="|"=="|"!=") boolean]
 
 boolean -> [+|-] additive {(+|-) additive}
 
-additive   -> factor {("*"|"/") factor}
+additive -> factor {("*"|"/") factor}
 
-factor     -> exponent ["^" exponent]
+factor -> exponent ["^" exponent]
 
-exponent   -> number                             | 
-              ["sin"|"cos"] "(" expression ")"   |
-              ident     |
-              array     |
-              function  |
-              "!" exponent |
-              ("+"|"-") exponent |
+exponent -> number              | 
+            ident               | 
+            array               |
+            function            |
+            "!" exponent        |
+            ("+"|"-") exponent  |
 

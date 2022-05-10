@@ -43,7 +43,7 @@ static token *next(token **toks);
 static token *move(token **toks);
 
 static int       keyword(token *tok);
-static double    *number(token *tok);
+static num_t     *number(token *tok);
 static const char *ident(token *tok);
 
 ast_node    *grammar_rule(token **toks);
@@ -450,28 +450,7 @@ ast_node *statement_rule(token **toks)
                         return syntax_error(toks);
                 require(KW_CLOSE);
 
-        } else if (keyword(*toks) == KW_SHOW) {
-                require(KW_SHOW);
-
-                root = create_ast_keyword(AST_SHOW);
-                if (!root)
-                        return syntax_error(toks);
-
-                require(KW_OPEN);
-
-                root->left = array_rule(toks);
-                if (!root->left)
-                        return syntax_error(toks);
-
-                require(KW_COMMA);
-
-                root->right = expression_rule(toks);
-                if (!root->right)
-                        return syntax_error(toks);
-
-                require(KW_CLOSE);
-
-        } else {
+        }  else {
                 if (ident(*toks) && keyword(next(toks)) == KW_OPEN) {
                         root = function_rule(toks);
                         if (!root)
@@ -849,18 +828,6 @@ ast_node *exponent_rule(token **toks)
                         return syntax_error(toks);
 
                 return root;
-        case KW_SIN:
-                move(toks);
-                set_ast_keyword(root, AST_SIN);
-                break;
-        case KW_COS:
-                move(toks);
-                set_ast_keyword(root, AST_COS);
-                break;
-        case KW_INT:
-                move(toks);
-                set_ast_keyword(root, AST_INT);
-                break;
         case KW_IN:
                 set_ast_keyword(root, AST_IN);
                 move(toks);
@@ -956,7 +923,7 @@ static int keyword(token *tok)
         return 0;
 }
 
-static double *number(token *tok)
+static num_t *number(token *tok)
 {
         assert(tok);
 
@@ -987,7 +954,7 @@ static void print_token(token *toks)
                                 toks->data.keyword, toks->data.keyword);
                 break;
         case TOKEN_NUMBER:
-                fprintf(stderr, ascii(BLUE, "number: %lg\n"), toks->data.number);
+                fprintf(stderr, ascii(BLUE, "number: %ld\n"), toks->data.number);
                 break;
         case TOKEN_IDENT:
                 fprintf(stderr, ascii(WHITE, "ident: %s [%p]\n"), toks->data.ident, 
