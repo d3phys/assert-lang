@@ -16,7 +16,7 @@ static int file_error(const char *file_name);
 int main(int argc, char *argv[])
 {
         if (argc != 3) {
-                fprintf(stderr, ascii(red, "There must be 2 arguments\n"));
+                fprintf(stderr, ascii(RED, "There must be 2 arguments\n"));
                 return EXIT_FAILURE;
         }
 
@@ -58,23 +58,23 @@ fail:
         clock_t end = clock();
 
         if (!tree || err || error) {
-                fprintf(stderr, ascii(red, "Transpilation failed\n"));
+                fprintf(stderr, ascii(RED, "Transpilation failed\n"));
                 return EXIT_FAILURE;
         }
 
-        fprintf(stderr, ascii(green, "Transpilation succeed: %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
+        fprintf(stderr, ascii(GREEN, "Transpilation succeed: %lf sec\n"), (end - start) / CLOCKS_PER_SEC);
         return EXIT_SUCCESS;
 }
 
 static int input_error()
 {
-        fprintf(stderr, ascii(red, "There must be 2 arguments\n"));
+        fprintf(stderr, ascii(RED, "There must be 2 arguments\n"));
         return EXIT_FAILURE;
 }
 
 static int file_error(const char *file_name)
 {
-        fprintf(stderr, ascii(red, "Can't open file %s: %s\n"), 
+        fprintf(stderr, ascii(RED, "Can't open file %s: %s\n"), 
                         file_name, strerror(errno));
 
         return EXIT_FAILURE;
