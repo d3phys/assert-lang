@@ -1069,7 +1069,7 @@ $$
                 encode(vm, &__push, sizeof(__push));         
         }
 
-        int n_pushed = sym->info + n_saved;
+        int n_pushed = sym->info;
         error = compile_call_begin(root, vm, &n_pushed);
         if (error)
                 return error;
@@ -1372,7 +1372,7 @@ $$
         }
 $$
         /* sub rbp, stack frame size */
-        __sub.imm = elf64_align(rip(vm), 0x10);
+        __sub.imm = elf64_align(vm->secs[SEC_NULL].size, 0x10);
         patch(vm, __sub_addr, &__sub, sizeof(__sub));
 
         pop_stack(symtabs);
