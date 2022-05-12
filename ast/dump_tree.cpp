@@ -154,8 +154,12 @@ void dump_tree(ast_node *root)
         static const size_t BUF_SIZE = 512;
         static char buf[BUF_SIZE]    = {0};
 
-        snprintf(buf, sizeof(buf), "%s%u.dot", DUMP_FILE_PATH, dump_num);
+        /* Create dump folder if not exist */
+        snprintf(buf, sizeof(buf), "mkdir -p %s", DUMP_FILE_PATH);
+        system(buf);
 
+        snprintf(buf, sizeof(buf), "%s%u.dot", DUMP_FILE_PATH, dump_num);
+        
         GVIZ_FILE = fopen(buf, "w");
         if (!GVIZ_FILE) {
                 fprintf(stderr, "Can't create dump tree file: %s.\n"
