@@ -72,11 +72,14 @@ HPATH  = $(TOPDIR)/include 	\
 
 ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 
-make: front back trans
+make: dep front back trans
 	nasm -f elf64 -o asslib.o asslib.s
 	@printf "\n\n\n\n\n\n"
 	@echo "Assert language is compiled now!"	
 	@echo "Read: https://d3phys.github.io/assert-book/"
+
+commit: clean rmdep
+	@echo "Ready for commit"
 
 quadr: back front
 	./tr examples/quadratic-integer test_tree 

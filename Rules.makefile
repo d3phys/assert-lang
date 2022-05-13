@@ -12,7 +12,7 @@ unexport OBJS
 clean:
 	@rm -f *.o 
 	@for i in $(SUBDIRS); do (cd $$i && $(MAKE) clean); done
-
+	
 subdirs:
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE)) || exit; done
 
@@ -21,11 +21,16 @@ subdirs:
 #
 dep:
 	@sed '/\#\#\# Dependencies \#\#\#/q' < Makefile > temp_make
-	@if [[ "$(wildcard *.cpp)" != "" ]]; then $(CPP) -MM *.cpp -I$(HPATH) >> temp_make; fi
+	@if [[ "$(wildcard *.cpp)" != "" ]]; then $(CPP) -MM *.cpp $(addprefix -I, $(HPATH)) >> temp_make; fi
 	@cp temp_make Makefile
 	@rm temp_make
 	@for i in $(SUBDIRS); do (cd $$i && $(MAKE) dep) || exit; done
 
+rmdep:
+	@sed '/\#\#\# Dependencies \#\#\#/q' < Makefile > temp_make
+	@cp temp_make Makefile
+	@rm temp_make
+	@for i in $(SUBDIRS); do (cd $$i && $(MAKE) rmdep) || exit; done	
 #
 # Common rules
 #
