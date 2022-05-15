@@ -24,7 +24,6 @@ static ast_node *syntax_error(ast_node *root);
 
 static ast_node *dump_code (ast_node *root);
 
-
 #define require(__node, __ast_type)                             \
         do {                                                    \
         if (__node && keyword(__node) != __ast_type)            \
@@ -46,15 +45,14 @@ static ast_node *dump_code (ast_node *root);
 static ac_symbol *find_symbol(stack *symtabs, const char *ident);
 
 static ast_node *compile_stdcall(ast_node *root, stack *symtabs, ac_virtual_memory *vm, const int sym_index);
-
-static ast_node *compile_return(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_assign(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_expr  (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_if    (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_while (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_call  (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_stmt  (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
-static ast_node *compile_define(ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_define (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_return (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_assign (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_expr   (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_while  (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_call   (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_stmt   (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
+static ast_node *compile_if     (ast_node *root, stack *symtabs, ac_virtual_memory *vm);
 
 static void compile_start(stack *symtabs, ac_virtual_memory *vm);
 
@@ -70,7 +68,7 @@ static void dump_symtab(stack *symtabs);
 
 static ast_node *declare_functions(ast_node *root, stack *symtabs);
 
-static char *encode(ac_virtual_memory *vm, void *instruction, size_t size);
+static char *emit(ac_virtual_memory *vm, void *instruction, size_t size);
 
 
 ast_node *compile_tree(ast_node *tree, elf64_section *secs, elf64_symbol *syms)
@@ -171,9 +169,9 @@ static inline ptrdiff_t rip(ac_virtual_memory *vm)
         return vm->secs[SEC_TEXT].size; 
 }
 
-static void encode_syscall(ac_virtual_memory *vm, const ubyte rax);
+static void emit_syscall(ac_virtual_memory *vm, const ubyte rax);
 
-static inline char *encode(ac_virtual_memory *vm, void *instruction, size_t size)
+static inline char *emit(ac_virtual_memory *vm, void *instruction, size_t size)
 {
         assert(vm);
         assert(instruction);
@@ -192,53 +190,54 @@ static void compile_start(stack *symtabs, ac_virtual_memory *vm)
            end of the .text section. */
         vm->_start = rip(vm);
 
+        /* call near */
         struct __attribute__((packed)) {
-                const ubyte opcode = 0xe8;
-                imm32 imm          = 0;
+                const ubyte opcode = 0xe8; /* call */
+                imm32 imm          = 0;    /* displacement relative to next instruction */ 
         } __call;
         
         /* Compile startup initialization of global variables. */
         for (int i = 0; i < global_symtab->size; i++) {
                 __call.imm = globals[i].offset - rip(vm) - sizeof(__call);
-                encode(vm, &__call, sizeof(__call));                
+                emit(vm, &__call, sizeof(__call));                
         }
 
-        /* Call the main function. */
+        /* Call the main() function. */
         __call.imm = vm->main->offset - rip(vm) - sizeof(__call);
-        encode(vm, &__call, sizeof(__call));  /* emit */
+        emit(vm, &__call, sizeof(__call));
 
-        /* Compile exit() syscall. */
-        encode_syscall(vm, 0x3c);
+        /* Emit exit() syscall. */
+        emit_syscall(vm, 0x3c);
 }
 
-static void encode_syscall(ac_virtual_memory *vm, const ubyte rax)
+static void emit_syscall(ac_virtual_memory *vm, const ubyte rax)
 {
         assert(vm);
 
-        /* mov rax, syscall_index */
+        /* Move imm32 to rax */
         struct __attribute__((packed)) {
-                const ubyte opcode = 0xb8 + IE64_RAX;
+                const ubyte opcode = 0xb8 + IE64_RAX; /* mov rax, imm */
                 imm32 imm          = 0;
         } __mov;
         
         __mov.imm = rax;
-        encode(vm, &__mov, sizeof(__mov));
+        emit(vm, &__mov, sizeof(__mov));
 
         /* xor rdi, rdi */
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48;
-                const ubyte opcode = 0x31;
+                const ubyte opcode = 0x31; /* xor */
                 const ie64_modrm modrm  = { .rm = IE64_RDI, .reg = IE64_RDI, .mod = 0b11 };
         } __xor;
         
-        encode(vm, &__xor, sizeof(__xor));
+        emit(vm, &__xor, sizeof(__xor));
 
         struct __attribute__((packed)) {
                 const ubyte prefix = 0x0f;
                 const ubyte opcode = 0x05;
         } __syscall;
         
-        encode(vm, &__syscall, sizeof(__syscall));
+        emit(vm, &__syscall, sizeof(__syscall));
 }
 
 static ast_node *compile_store(ast_node *root, stack *symtabs, ac_virtual_memory *vm, ac_symbol *sym)
@@ -263,7 +262,7 @@ static ast_node *compile_store(ast_node *root, stack *symtabs, ac_virtual_memory
                                 ubyte opcode = 0xc3;     
                         } __ret;                
 
-                        encode(vm, &__ret, sizeof(__ret));
+                        emit(vm, &__ret, sizeof(__ret));
                 }
 
                 return success(root);
@@ -341,7 +340,7 @@ $$
         __add.modrm.reg = vm->reg.stack--;
         __add.modrm.rm  = vm->reg.stack;
 
-        encode(vm, &__add, sizeof(__add));
+        emit(vm, &__add, sizeof(__add));
         
         return success(root);        
 }
@@ -357,7 +356,7 @@ $$
         __sub.modrm.reg = vm->reg.stack--;
         __sub.modrm.rm  = vm->reg.stack;
 
-        encode(vm, &__sub, sizeof(__sub));
+        emit(vm, &__sub, sizeof(__sub));
         
         return success(root);        
 }
@@ -374,7 +373,7 @@ $$
         __imul.modrm.rm  = vm->reg.stack--;
         __imul.modrm.reg = vm->reg.stack;
 
-        encode(vm, &__imul, sizeof(__imul));
+        emit(vm, &__imul, sizeof(__imul));
         
         return success(root); 
 }
@@ -388,14 +387,14 @@ static ast_node *compile_expr_div(ast_node *root, stack *symtabs, ac_virtual_mem
         } __mov32;
 
         __mov32.modrm.reg = (vm->reg.stack - 1);
-        encode(vm, &__mov32, sizeof(__mov32));
+        emit(vm, &__mov32, sizeof(__mov32));
 
         /* Sign extend rax to rdx:rax */
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48;
                 const ubyte opcode = 0x99;
         } __cqo;
-        encode(vm, &__cqo, sizeof(__cqo));
+        emit(vm, &__cqo, sizeof(__cqo));
 
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x49; /* 0b1001001 */
@@ -404,7 +403,7 @@ static ast_node *compile_expr_div(ast_node *root, stack *symtabs, ac_virtual_mem
         } __idiv;
 
         __idiv.modrm.rm = vm->reg.stack--;
-        encode(vm, &__idiv, sizeof(__idiv));
+        emit(vm, &__idiv, sizeof(__idiv));
                       
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x49; /* 0b1001001 */
@@ -413,7 +412,7 @@ static ast_node *compile_expr_div(ast_node *root, stack *symtabs, ac_virtual_mem
         } __mov64;
 
         __mov64.modrm.rm = vm->reg.stack;
-        encode(vm, &__mov64, sizeof(__mov64));
+        emit(vm, &__mov64, sizeof(__mov64));
 
         return success(root);        
 }
@@ -428,7 +427,7 @@ static ast_node *compile_expr_not(ast_node *root, stack *symtabs, ac_virtual_mem
         } __not;
 
         __not.modrm.rm = vm->reg.stack;
-        encode(vm, &__not, sizeof(__not));
+        emit(vm, &__not, sizeof(__not));
         
         return success(root);        
 }
@@ -443,7 +442,7 @@ static ast_node *compile_expr_and(ast_node *root, stack *symtabs, ac_virtual_mem
         __and.modrm.reg = vm->reg.stack--;
         __and.modrm.rm  = vm->reg.stack;
         
-        encode(vm, &__and, sizeof(__and));
+        emit(vm, &__and, sizeof(__and));
         
         return success(root);
 }
@@ -458,7 +457,7 @@ static ast_node *compile_expr_or(ast_node *root, stack *symtabs, ac_virtual_memo
         __or.modrm.reg = vm->reg.stack--;
         __or.modrm.rm  = vm->reg.stack;
         
-        encode(vm, &__or, sizeof(__or));
+        emit(vm, &__or, sizeof(__or));
         return success(root);
 }
 
@@ -473,7 +472,7 @@ static ast_node *compile_expr_cmp(ast_node *root, stack *symtabs, ac_virtual_mem
         __cmp.modrm.reg = vm->reg.stack--;
         __cmp.modrm.rm  = vm->reg.stack;
 
-        encode(vm, &__cmp, sizeof(__cmp));
+        emit(vm, &__cmp, sizeof(__cmp));
 
         /* mov rax, 0x01 */
         struct __attribute__((packed)) {
@@ -481,7 +480,7 @@ static ast_node *compile_expr_cmp(ast_node *root, stack *symtabs, ac_virtual_mem
                 imm32 imm          = 1;
         } __mov32;
 
-        encode(vm, &__mov32, sizeof(__mov32));                
+        emit(vm, &__mov32, sizeof(__mov32));                
 
         /* Zero register. */
         struct __attribute__((packed)) {
@@ -491,7 +490,7 @@ static ast_node *compile_expr_cmp(ast_node *root, stack *symtabs, ac_virtual_mem
         } __mov64;
 
         __mov64.opcode += vm->reg.stack;
-        encode(vm, &__mov64, sizeof(__mov64));
+        emit(vm, &__mov64, sizeof(__mov64));
 
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x4c; /* 1001100b */
@@ -525,7 +524,7 @@ static ast_node *compile_expr_cmp(ast_node *root, stack *symtabs, ac_virtual_mem
 $$              return syntax_error(root);
         }
 $$
-        encode(vm, &__cmov, sizeof(__cmov));
+        emit(vm, &__cmov, sizeof(__cmov));
         
         return success(root);        
 }
@@ -631,14 +630,14 @@ static ast_node *compile_while(ast_node *root, stack *symtabs, ac_virtual_memory
 
         struct __attribute__((packed)) {
                 const ubyte rex     = 0x4d; /* 1001101b */
-                const ubyte opcode  = 0x85;
+                const ubyte opcode  = 0x85; /* test */
                 ie64_modrm modrm    = { .rm = 0b000, .reg = 0b000, .mod = 0b11 }; 
         } __test;
 
         __test.modrm.rm  = vm->reg.stack;
         __test.modrm.reg = vm->reg.stack--;
 
-        encode(vm, &__test, sizeof(__test));
+        emit(vm, &__test, sizeof(__test));
 
         struct __attribute__((packed)) {
                 const ubyte prefix = 0x0f;
@@ -649,7 +648,7 @@ static ast_node *compile_while(ast_node *root, stack *symtabs, ac_virtual_memory
         ptrdiff_t __je_addr = rip(vm);
         
         /* Jump to the end of cycle */
-        encode(vm, &__je, sizeof(__je));
+        emit(vm, &__je, sizeof(__je));
 
         /* Compile body loop */
         error = compile_stmt(root->right, symtabs, vm);
@@ -664,7 +663,7 @@ static ast_node *compile_while(ast_node *root, stack *symtabs, ac_virtual_memory
         __jmp.imm = cond_addr - rip(vm) - sizeof(__jmp);
 
         /* Jump to the condition expression */
-        encode(vm, &__jmp, sizeof(__jmp));
+        emit(vm, &__jmp, sizeof(__jmp));
 
         /* Patch jump to the end of loop */
         __je.imm = -__je_addr - sizeof(__je) + rip(vm);
@@ -706,7 +705,7 @@ static ast_node *compile_if(ast_node *root, stack *symtabs, ac_virtual_memory *v
         __test.modrm.rm  = vm->reg.stack;
         __test.modrm.reg = vm->reg.stack--;
 
-        encode(vm, &__test, sizeof(__test));
+        emit(vm, &__test, sizeof(__test));
 
         struct __attribute__((packed)) {
                 const ubyte prefix = 0x0f;
@@ -715,7 +714,7 @@ static ast_node *compile_if(ast_node *root, stack *symtabs, ac_virtual_memory *v
         } __je;
 
         ptrdiff_t __je_addr = rip(vm);
-        encode(vm, &__je, sizeof(__je));
+        emit(vm, &__je, sizeof(__je));
         
         ast_node *decision = root->right;
         if (!decision)
@@ -736,7 +735,7 @@ $$
                 } __jmp;
 
                 ptrdiff_t __jmp_addr = rip(vm);
-                encode(vm, &__jmp, sizeof(__jmp));
+                emit(vm, &__jmp, sizeof(__jmp));
                 
                 __je.imm = rip(vm) - __je_addr - sizeof(__je);
                 patch(vm, __je_addr, &__je, sizeof(__je));
@@ -772,7 +771,7 @@ $$
 $$
         __movabs.imm = (imm64)ast_number(root);
         __movabs.opcode += (++vm->reg.stack);
-        encode(vm, &__movabs, sizeof(__movabs));
+        emit(vm, &__movabs, sizeof(__movabs));
 $$
         return success(root);
 }
@@ -805,7 +804,7 @@ static ast_node *compile_stack_store(ast_node *root, stack *symtabs, ac_virtual_
                 __mov64.imm       = sym->addend;
 
                 /* mov [rbp + 8*r + imm], r */
-                encode(vm, &__mov64, sizeof(__mov64));
+                emit(vm, &__mov64, sizeof(__mov64));
                 return success(root);
                 
         } else {
@@ -821,7 +820,7 @@ static ast_node *compile_stack_store(ast_node *root, stack *symtabs, ac_virtual_
                 __mov64.imm       = sym->addend;
 
                 /* mov [rbp + imm], r */
-                encode(vm, &__mov64, sizeof(__mov64));
+                emit(vm, &__mov64, sizeof(__mov64));
                 return success(root);
         }
 }      
@@ -854,7 +853,7 @@ static ast_node *compile_stack_load(ast_node *root, stack *symtabs, ac_virtual_m
                 __mov64.imm       = sym->addend;
 
                 /* mov r, [rbp + 8*r + imm] */
-                encode(vm, &__mov64, sizeof(__mov64));
+                emit(vm, &__mov64, sizeof(__mov64));
                 return success(root);
                 
         } else {
@@ -870,7 +869,7 @@ static ast_node *compile_stack_load(ast_node *root, stack *symtabs, ac_virtual_m
                 __mov64.imm       = sym->addend;
 
                 /* mov r, [rbp + imm] */
-                encode(vm, &__mov64, sizeof(__mov64));
+                emit(vm, &__mov64, sizeof(__mov64));
                 return success(root);
         }
 }      
@@ -910,7 +909,7 @@ $$
                 __mov64.modrm.reg = vm->reg.stack--;
 $$
                 /* mov [8*r + imm], r */
-                encode(vm, &__mov64, sizeof(__mov64));       
+                emit(vm, &__mov64, sizeof(__mov64));       
                 
         } else {
         
@@ -927,7 +926,7 @@ $$
                 __mov64.modrm.reg = vm->reg.stack--;
 $$     
                 /* mov [imm], r */
-                encode(vm, &__mov64, sizeof(__mov64));
+                emit(vm, &__mov64, sizeof(__mov64));
         }
 $$
         section_memcpy(vm->secs + SEC_RELA_TEXT, &rela, sizeof(Elf64_Rela));
@@ -969,7 +968,7 @@ $$
                 __mov64.modrm.reg = vm->reg.stack;
 $$
                 /* mov r, [8*r + imm] */
-                encode(vm, &__mov64, sizeof(__mov64));       
+                emit(vm, &__mov64, sizeof(__mov64));       
                 
         } else {
         
@@ -986,7 +985,7 @@ $$
                 __mov64.modrm.reg = (++vm->reg.stack);
 $$     
                 /* mov r, [imm] */
-                encode(vm, &__mov64, sizeof(__mov64));
+                emit(vm, &__mov64, sizeof(__mov64));
         }
 $$
         section_memcpy(vm->secs + SEC_RELA_TEXT, &rela, sizeof(Elf64_Rela));
@@ -1009,7 +1008,7 @@ static ast_node *compile_call_begin(ast_node *root, ac_virtual_memory *vm, int *
                 } __sub; 
                 
                 /* sub rsp, 0x8 */
-                encode(vm, &__sub, sizeof(__sub));        
+                emit(vm, &__sub, sizeof(__sub));        
         }
 
         *pushed = n_pushed;
@@ -1027,7 +1026,7 @@ $$
         __mov64.modrm.rm = (++vm->reg.stack);
 
         /* mov r, rax */
-        encode(vm, &__mov64, sizeof(__mov64));
+        emit(vm, &__mov64, sizeof(__mov64));
 
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48; /* 1001000b */
@@ -1039,7 +1038,7 @@ $$
         __add.imm = pushed * 0x8;
 
         /* add rsp, aligned * 0x8 */
-        encode(vm, &__add, sizeof(__add)); 
+        emit(vm, &__add, sizeof(__add)); 
 
         return success(root);
 }
@@ -1066,7 +1065,7 @@ $$
                 } __push;
 
                 __push.opcode += (i + 1);
-                encode(vm, &__push, sizeof(__push));         
+                emit(vm, &__push, sizeof(__push));         
         }
 
         int n_pushed = sym->info;
@@ -1090,7 +1089,7 @@ $$
                 } __push;           
 $$
                 __push.opcode += vm->reg.stack--;
-                encode(vm, &__push, sizeof(__push));        
+                emit(vm, &__push, sizeof(__push));        
 
                 param = param->left;
         }
@@ -1101,7 +1100,7 @@ $$
         } __call; 
 $$
         __call.imm = sym->offset - rip(vm) - sizeof(__call);     
-        encode(vm, &__call, sizeof(__call));
+        emit(vm, &__call, sizeof(__call));
         
         error = compile_call_end(root, vm, n_pushed);
         if (error)
@@ -1116,7 +1115,7 @@ $$
                 } __pop;
 
                 __pop.opcode += i;
-                encode(vm, &__pop, sizeof(__pop));        
+                emit(vm, &__pop, sizeof(__pop));        
         }
                 
         return success(root);        
@@ -1147,7 +1146,7 @@ $$
                 } __push;           
 $$
                 __push.opcode += (vm->reg.stack--);
-                encode(vm, &__push, sizeof(__push));        
+                emit(vm, &__push, sizeof(__push));        
         }
 $$
         struct __attribute__((packed)) {
@@ -1162,7 +1161,7 @@ $$
         }; 
 $$     
         section_memcpy(vm->secs + SEC_RELA_TEXT, &rela, sizeof(Elf64_Rela));      
-        encode(vm, &__call, sizeof(__call));
+        emit(vm, &__call, sizeof(__call));
 
         error = compile_call_end(root, vm, n_pushed);
         if (error)
@@ -1196,7 +1195,7 @@ $$
         } __mov64;
 $$
         __mov64.modrm.reg = vm->reg.stack--;
-        encode(vm, &__mov64, sizeof(__mov64));
+        emit(vm, &__mov64, sizeof(__mov64));
 $$
         /* mov rsp, rbp */         
         struct __attribute__((packed)) {
@@ -1205,20 +1204,20 @@ $$
                 ie64_modrm modrm = { .rm = IE64_RSP, .reg = IE64_RBP, .mod = 0b11 };         
         } __mov32;
 
-        encode(vm, &__mov32, sizeof(__mov32));
+        emit(vm, &__mov32, sizeof(__mov32));
 
         /* pop rbp */
         struct __attribute__((packed)) {
                 const ubyte opcode = 0x58 + IE64_RBP;
         } __pop;
 $$
-        encode(vm, &__pop, sizeof(__pop));
+        emit(vm, &__pop, sizeof(__pop));
 $$
         struct __attribute__((packed)) {
                 ubyte opcode = 0xc3;     
         } __ret;
       
-        encode(vm, &__ret, sizeof(__ret));
+        emit(vm, &__ret, sizeof(__ret));
 $$
         return success(root);
 }
@@ -1344,7 +1343,7 @@ $$
                 const ubyte opcode = 0x50 + IE64_RBP;
         } __push;
 $$
-        encode(vm, &__push, sizeof(__push));
+        emit(vm, &__push, sizeof(__push));
 $$
         /* mov rbp, rsp */         
         struct __attribute__((packed)) {
@@ -1353,7 +1352,7 @@ $$
                 ie64_modrm modrm   = { .rm = IE64_RBP, .reg = IE64_RSP, .mod = 0b11 };         
         } __mov64;
 $$
-        encode(vm, &__mov64, sizeof(__mov64));
+        emit(vm, &__mov64, sizeof(__mov64));
 $$
         struct __attribute__((packed)) {
                 const ubyte rex    = 0x48; /* 1001000b */
@@ -1363,7 +1362,7 @@ $$
         } __sub; 
 
         ptrdiff_t __sub_addr = rip(vm);
-        encode(vm, &__sub, sizeof(__sub));
+        emit(vm, &__sub, sizeof(__sub));
 $$
         error = compile_stmt(root->right, symtabs, vm);
         if (error) {
