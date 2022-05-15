@@ -206,6 +206,14 @@ static void compile_start(stack *symtabs, ac_virtual_memory *vm)
         __call.imm = vm->main->offset - rip(vm) - sizeof(__call);
         emit(vm, &__call, sizeof(__call));
 
+        /* Move rax to rdi */        
+        struct __attribute__((packed)) {
+                const ubyte rex    = 0x48;
+                const ubyte opcode = 0x89;
+                ie64_modrm modrm = { .rm = IE64_RDI, .reg = IE64_RAX, .mod = 0b11 };         
+        } __mov32;
+        emit(vm, &__mov32, sizeof(__mov32));
+
         /* Emit exit() syscall. */
         emit_syscall(vm, 0x3c);
 }
@@ -222,15 +230,6 @@ static void emit_syscall(ac_virtual_memory *vm, const ubyte rax)
         
         __mov.imm = rax;
         emit(vm, &__mov, sizeof(__mov));
-
-        /* xor rdi, rdi */
-        struct __attribute__((packed)) {
-                const ubyte rex    = 0x48;
-                const ubyte opcode = 0x31; /* xor */
-                const ie64_modrm modrm  = { .rm = IE64_RDI, .reg = IE64_RDI, .mod = 0b11 };
-        } __xor;
-        
-        emit(vm, &__xor, sizeof(__xor));
 
         struct __attribute__((packed)) {
                 const ubyte prefix = 0x0f;
