@@ -619,6 +619,9 @@ static ast_node *compile_while(ast_node *root, stack *symtabs, ac_virtual_memory
         if (!root->left)
                 return syntax_error(root);
 
+        array symtab = {};
+        push_stack(symtabs, &symtab);
+
         /* Store the start of the condition code */
         ptrdiff_t cond_addr = rip(vm);
 
@@ -668,6 +671,9 @@ static ast_node *compile_while(ast_node *root, stack *symtabs, ac_virtual_memory
         __je.imm = -__je_addr - sizeof(__je) + rip(vm);
         patch(vm, __je_addr, &__je, sizeof(__je));
 
+        pop_stack(symtabs);
+        free_array(&symtab, sizeof(ac_symbol));
+
         return success(root);
 }
 
@@ -690,6 +696,9 @@ static ast_node *compile_if(ast_node *root, stack *symtabs, ac_virtual_memory *v
 
         ast_node *error = nullptr;
         require(root, AST_IF);
+
+        array symtab = {};
+        push_stack(symtabs, &symtab);
 
         error = compile_expr(root->left, symtabs, vm);
         if (error)
@@ -750,6 +759,9 @@ $$
                 __je.imm = rip(vm) - __je_addr - sizeof(__je);
                 patch(vm, __je_addr, &__je, sizeof(__je));
         }
+
+        pop_stack(symtabs);
+        free_array(&symtab, sizeof(ac_symbol));
 
         return success(root);
 }
