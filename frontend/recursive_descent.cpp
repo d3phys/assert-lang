@@ -67,24 +67,6 @@ ast_node   *function_rule(token **toks);
 
 ast_node *create_ast(const char *str);
 
-/*
-int main() 
-{
-        FILE *f = fopen("code", "r");
-        const size_t SIZE = 1024;
-
-        char *str = (char *)calloc(SIZE, sizeof(char));
-        fread(str, sizeof(char), SIZE, f);
-        printf("%s\n", str);
-
-        create_ast(str);
-
-        free(str);
-        return 0;
-}
-*/
-
-
 ast_node *create_ast(const char *source_code)
 {
         assert(source_code);
@@ -161,7 +143,6 @@ ast_node *grammar_rule(token **toks)
 
         return root;
 }
-
 
 ast_node *assign_rule(token **toks)
 {
@@ -485,7 +466,6 @@ ast_node *statement_rule(token **toks)
         root->right->right = stmt;
         return root;
 }
-
 
 ast_node *boolean_rule(token **toks)
 {

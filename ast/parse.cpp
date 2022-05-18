@@ -80,30 +80,6 @@ static ast_node *read_ast_node(char **str, array *const idents)
         skip_spaces(str);
         return root;
 }
-/*
-int main() 
-{
-        mmap_data md = {0};
-        int err = mmap_in(&md, "tree"); 
-        if (err)
-                return 0;
-
-        char *r = md.buf;
-        array idents = {0};
-        ast_node *rt = read_ast_tree(&r, &idents);
-        if (rt)
-                dump_tree(rt);
-
-        mmap_free(&md);
-        char **data = (char **)idents.data;
-        for (size_t i = 0; i < idents.size; i++) {
-                free(data[i]);
-        }
-
-        free_array(&idents, sizeof(char *));
-
-        return 0;
-}*/
 
 static ast_node *read_keyword(char *str, size_t length) 
 {

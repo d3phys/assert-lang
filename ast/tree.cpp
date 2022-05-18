@@ -29,7 +29,6 @@ static void free_memstack()
         destruct_stack(&ALLOC);
 }
 
-
 void save_ast_tree(FILE *file, ast_node *const node)
 {
         assert(file);
@@ -160,7 +159,6 @@ ast_node *copy_tree(ast_node *n)
 
         return newbie;
 }
-
 
 void free_tree(ast_node *root)
 {
