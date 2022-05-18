@@ -1,35 +1,53 @@
-grammar -> { "dump" define | "assert" "(" assign ")" } $
+/* 
+ * Assert language Grammar
+ * The notation is a mixture of EBNF and my preferences.
+ *
+ * +───────────────────+────────────+
+ * | Usage             | Notation   |
+ * +───────────────────+────────────+
+ * | definition        | =          |
+ * | concatenation     | ,          |
+ * | termination       | ;          |
+ * | alternation       | |          |
+ * | optional          | [ ... ]    |
+ * | repetition        | { ... }    |
+ * | grouping          | ( ... )    |
+ * | terminal string   | " ... "    |
+ * +───────────────────+────────────+
+ */
+   
+grammar -> { "dump" define | "assert" "(" assign ")" } ;
 
 assign -> ["inv"] ident "=" expression | 
-          ["inv"] array "=" expression 
+          ["inv"] array "=" expression ;
           
-define -> ident "(" [ident] {"," ident } ")" block
+define -> ident "(" [ident] {"," ident } ")" block ;
 
-block  -> statement | "{" statement  { statement } "}"
+block  -> statement | "{" statement  { statement } "}" ;
 
 statement -> "assert" "(" ( assign | "return"  expression ) ")"  |   
              "if"     "(" expression ")" block ["else" block] |
              "while"  "(" expression ")" block |
-             function
+             function ;
 
-function -> (ident | "out" | "in") "(" [expression] {"," expression } ")"
+function -> (ident | "out" | "in") "(" [expression] {"," expression } ")" ;
               
-array -> ident "[" expression "]"
+array -> ident "[" expression "]" ;
 
-expression -> logical {("||"|"&&") logical}
+expression -> logical {("||"|"&&") logical} ;
 
-logical -> boolean [(">"|"<"|">="|"<="|"=="|"!=") boolean]
+logical -> boolean [(">"|"<"|">="|"<="|"=="|"!=") boolean] ;
 
-boolean -> [+|-] additive {(+|-) additive}
+boolean -> [+|-] additive {(+|-) additive} ;
 
-additive -> factor {("*"|"/") factor}
+additive -> factor {("*"|"/") factor} ;
 
-factor -> exponent ["^" exponent]
+factor -> exponent ["^" exponent] ;
 
 exponent -> number              | 
             ident               | 
             array               |
             function            |
             "!" exponent        |
-            ("+"|"-") exponent  |
+            ("+"|"-") exponent  ;
 
