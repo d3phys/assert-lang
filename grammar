@@ -5,7 +5,7 @@
  * +───────────────────+────────────+
  * | Usage             | Notation   |
  * +───────────────────+────────────+
- * | definition        | =          |
+ * | definition        | ->         |
  * | concatenation     | ,          |
  * | termination       | ;          |
  * | alternation       | |          |
