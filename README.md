@@ -21,3 +21,23 @@ dump main() {
 
 Read about Assert in the [Assert Book](https://d3phys.github.io/assert-book/) ❤
 
+#### Project layout
+Here you can find an overview of the project structure.
+```
+/* Directories */
+├── ast         Abstract Syntax Tree module
+├── backend     Compiler backend code
+├── frontend    Compiler frontend code
+├── include     All include files
+├── lib         Libraries and Components
+│   └── logs    Log and dump subsystem
+├── resources   Images and stuff
+└── trans       AST to Source code decompiler
+
+/* Files */
+├── AST         AST nodes format
+├── asslib.s    Assert Standard Library code
+├── grammar     Language EBNF grammar
+├── KEYWORDS    Lexer script
+├── STDLIB      Standard functions table
+```
