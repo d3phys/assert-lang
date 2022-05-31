@@ -228,7 +228,7 @@ $       (err = verify_stk(stk);)
         }
 
         if (stk->size - 1 < index) {
-                fprintf(logs, "Can't get item %lu. Index %lu is too big\n", index);
+                fprintf(logs, "Can't get item %lu. Index %lu is too big\n", index, index);
                 err = STK_EMPTY_POP;
                 goto finally;                
         }
@@ -307,7 +307,7 @@ $       (err = verify_stk(stk);)
                 goto finally;
         }
 
-        for (int i = stk->size - 1; i >= 0; i--) {
+        for (int i = (int)stk->size - 1; i >= 0; i--) {
                 if (stk->items[i] == item) {
                         found = &stk->items[i];
                         break;

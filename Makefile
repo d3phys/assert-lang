@@ -19,7 +19,7 @@ TXXFLAGS = -g --static-pie -std=c++14 -fmax-errors=100 -Wall -Wextra  	   \
 	   -Wformat-nonliteral -Wformat-security -Wformat-signedness       \
 	   -Wformat=2 -Winline -Wlarger-than=8192 -Wlogical-op 	           \
 	   -Wmissing-declarations -Wnon-virtual-dtor -Wopenmp-simd 	   \
-	   -Woverloaded-virtual -Wpacked -Wpointer-arith -Wredundant-decls \
+	   -Woverloaded-virtual -Wpointer-arith -Wredundant-decls          \
 	   -Wshadow -Wsign-conversion -Wsign-promo -Wstack-usage=8192      \
 	   -Wstrict-null-sentinel -Wstrict-overflow=2 			   \
 	   -Wsuggest-attribute=noreturn -Wsuggest-final-methods 	   \

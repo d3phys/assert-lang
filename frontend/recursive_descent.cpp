@@ -934,7 +934,7 @@ static void print_token(token *toks)
                                 toks->data.keyword, toks->data.keyword);
                 break;
         case TOKEN_NUMBER:
-                fprintf(stderr, ascii(BLUE, "number: %ld\n"), toks->data.number);
+                fprintf(stderr, ascii(BLUE, "number: %lld\n"), toks->data.number);
                 break;
         case TOKEN_IDENT:
                 fprintf(stderr, ascii(WHITE, "ident: %s [%p]\n"), toks->data.ident, 

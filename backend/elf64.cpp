@@ -11,6 +11,8 @@ static Elf64_Ehdr *elf64_create_ehdr();
 
 extern const size_t SEC_ALIGN;
 
+/* Elf64 unit test. 
+   It has to compile ELF-executable from a pregenerated source code. */
 int elf64_utest(const char *file_name)
 {  
         assert(file_name);
@@ -114,7 +116,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = secs[SEC_TEXT].size;
         shdrs[SEC_TEXT] = {
-                .sh_name      = secs[SEC_TEXT].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_TEXT].name - shstrtab),
                 .sh_type      = SHT_PROGBITS,
                 .sh_flags     = SHF_ALLOC | SHF_EXECINSTR,
                 .sh_addr      = 0,
@@ -129,7 +131,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = secs[SEC_RODATA].size;
         shdrs[SEC_RODATA] = {
-                .sh_name      = secs[SEC_RODATA].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_RODATA].name - shstrtab),
                 .sh_type      = SHT_PROGBITS,
                 .sh_flags     = SHF_ALLOC,
                 .sh_addr      = 0,
@@ -144,7 +146,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = secs[SEC_DATA].size;
         shdrs[SEC_DATA] = {
-                .sh_name      = secs[SEC_DATA].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_DATA].name - shstrtab),
                 .sh_type      = SHT_PROGBITS,
                 .sh_flags     = SHF_ALLOC | SHF_WRITE,
                 .sh_addr      = 0,
@@ -159,7 +161,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = secs[SEC_BSS].size;
         shdrs[SEC_BSS] = {
-                .sh_name      = secs[SEC_BSS].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_BSS].name - shstrtab),
                 .sh_type      = SHT_NOBITS,
                 .sh_flags     = SHF_ALLOC | SHF_WRITE,
                 .sh_addr      = 0,
@@ -173,7 +175,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
 
         size = secs[SEC_SHSTRTAB].size;
         shdrs[SEC_SHSTRTAB] = {
-                .sh_name      = secs[SEC_SHSTRTAB].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_SHSTRTAB].name - shstrtab),
                 .sh_type      = SHT_STRTAB,
                 .sh_flags     = 0,
                 .sh_addr      = 0,
@@ -188,7 +190,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = SYM_NUM * sizeof(Elf64_Sym);
         shdrs[SEC_SYMTAB] = {
-                .sh_name      = secs[SEC_SYMTAB].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_SYMTAB].name - shstrtab),
                 .sh_type      = SHT_SYMTAB,
                 .sh_flags     = 0,
                 .sh_addr      = 0,
@@ -203,7 +205,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = secs[SEC_STRTAB].size;
         shdrs[SEC_STRTAB] = {
-                .sh_name      = secs[SEC_STRTAB].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_STRTAB].name - shstrtab),
                 .sh_type      = SHT_STRTAB,
                 .sh_flags     = 0,
                 .sh_addr      = 0,
@@ -218,7 +220,7 @@ static Elf64_Shdr *elf64_create_shdrs(elf64_section *secs)
         offset += elf64_align(size);
         size = secs[SEC_RELA_TEXT].size;
         shdrs[SEC_RELA_TEXT] = {
-                .sh_name      = secs[SEC_RELA_TEXT].name - shstrtab,
+                .sh_name      = (Elf64_Word)(secs[SEC_RELA_TEXT].name - shstrtab),
                 .sh_type      = SHT_RELA,
                 .sh_flags     = 0,
                 .sh_addr      = 0,
@@ -254,7 +256,7 @@ Elf64_Sym *elf64_create_symtab(elf64_symbol *syms, elf64_section *secs)
         char *strtab = secs[SEC_STRTAB].data;
      
         symtab[SYM_FILE] = {
-                .st_name  = syms[SYM_FILE].name - strtab,
+                .st_name  = (Elf64_Word)(syms[SYM_FILE].name - strtab),
                 .st_info  = ELF64_ST_INFO(STB_LOCAL, STT_FILE),
                 .st_other = ELF64_ST_VISIBILITY(STV_DEFAULT),
                 .st_shndx = SHN_ABS,    
@@ -301,7 +303,7 @@ Elf64_Sym *elf64_create_symtab(elf64_symbol *syms, elf64_section *secs)
 
 #define ASS_STDLIB(ID, NAME, ARGS)                                      \
         symtab[SYM_##ID] = {                                            \
-                .st_name  = syms[SYM_##ID].name - strtab,               \
+                .st_name  = (Elf64_Word)(syms[SYM_##ID].name - strtab), \
                 .st_info  = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE),      \
                 .st_other = ELF64_ST_VISIBILITY(STV_DEFAULT),           \
                 .st_shndx = 0,                                          \
@@ -313,11 +315,11 @@ Elf64_Sym *elf64_create_symtab(elf64_symbol *syms, elf64_section *secs)
 #undef ASS_STDLIB 
 
         symtab[SYM_START] = {
-                .st_name  = syms[SYM_START].name - strtab,
+                .st_name  = (Elf64_Word)(syms[SYM_START].name - strtab),
                 .st_info  = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE),
                 .st_other = ELF64_ST_VISIBILITY(STV_DEFAULT),
                 .st_shndx = SEC_TEXT,    
-                .st_value = syms[SYM_START].value,
+                .st_value = (Elf64_Addr)syms[SYM_START].value,
                 .st_size  = 0,  
         };
         

@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 
-typedef uint8_t  imm8;
-typedef uint16_t imm16;
-typedef uint32_t imm32;
-typedef uint64_t imm64;
+typedef int8_t  imm8;
+typedef int16_t imm16;
+typedef int32_t imm32;
+typedef int64_t imm64;
 
 typedef unsigned char ubyte; 
 

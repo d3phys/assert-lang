@@ -57,8 +57,7 @@ void *realloc_array(array *const arr, size_t capacity, size_t item_size)
                 return nullptr;
         }
 
-        memset(data + arr->size * item_size, 0, 
-              (capacity - arr->size) * item_size);
+        memset((char *)data + arr->size * item_size, 0, (capacity - arr->size) * item_size);
 
         arr->capacity = capacity;
         arr->data     = data;
@@ -180,8 +179,8 @@ void dump_array(array *const arr, size_t item_size,
                 fprintf(logs, "------------------------------------------------\n"
                               "| %-4lu | ", i);
 
-                fprintf(logs, "0x%-4x| ", i * item_size);
-                if (print) print(arr->data + i * item_size);
+                fprintf(logs, "0x%-4lx| ", i * item_size);
+                if (print) print((char *)arr->data + i * item_size);
                 fprintf(logs, "\n");
         }
 
@@ -189,9 +188,9 @@ void dump_array(array *const arr, size_t item_size,
                 fprintf(logs, "------------------------------------------------\n"
                               "| %-4lu | ", i);
 
-                fprintf(logs, "0x%-4x| ", i * item_size);
+                fprintf(logs, "0x%-4lx| ", i * item_size);
                 fprintf(logs, html(BROWN, bold("BULLSHIT ")));
-                if (print) print(arr->data + i * item_size);
+                if (print) print((char *)arr->data + i * item_size);
                 fprintf(logs, "\n");
         }
 
