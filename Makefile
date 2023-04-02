@@ -1,5 +1,5 @@
 #
-# Main akinator makefile 
+# Main akinator makefile
 #
 # Important! Dependencies are done automatically by 'make dep', which also
 # removes any old dependencies. Do not modify it...
@@ -52,16 +52,16 @@ TXXFLAGS = -g --static-pie -std=c++14 -fmax-errors=100 -Wall -Wextra  	   \
 	   -fsanitize=unreachable                                          \
 	   -fsanitize=vla-bound                                            \
 	   -fsanitize=vptr                                                 \
-	   -lm -pie                                          
+	   -lm -pie
 
-SUBDIRS = lib frontend ast backend trans
+SUBDIRS = lib frontend ast backend/llvm backend/legacy trans
 
 CXX = g++
-CPP = $(CXX) -E 
+CPP = $(CXX) -E
 TOPDIR	:= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
- 
- CXXFLAGS = $(HFLAGS) $(LOGSFLAGS) $(TXXFLAGS)
+
+CXXFLAGS = $(HFLAGS) $(LOGSFLAGS) $(TXXFLAGS)
 LOGSFLAGS = -D 'LOGS_FILE="logs.html"' -D LOGS_COLORS -D LOGS_DEBUG
 
 # Header files
@@ -72,29 +72,29 @@ HPATH  = $(TOPDIR)/include 	\
 
 ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 
-make: dep front back trans
+make: dep front back trans back-llvm
 	nasm -f elf64 -o asslib.o asslib.s
 	@printf "\n\n\n\n\n\n"
-	@echo "Assert language is compiled now!"	
+	@echo "Assert language is compiled now!"
 	@echo "Read: https://d3phys.github.io/assert-book/"
 
 commit: clean rmdep
 	@echo "Ready for commit"
 
 quadr: back front
-	./tr examples/quadratic-integer test_tree 
-	./cum test_tree asm 
-	ld -o test asm asslib.o /lib64/libc.so.6 -I/lib64/ld-linux-x86-64.so.2 
-	
-fuck: back front
-	./tr examples/fucktorial test_tree 
-	./cum test_tree asm 
-	ld -o test asm asslib.o /lib64/libc.so.6 -I/lib64/ld-linux-x86-64.so.2 
+	./tr examples/quadratic-integer test_tree
+	./cum test_tree asm
+	ld -o test asm asslib.o /lib64/libc.so.6 -I/lib64/ld-linux-x86-64.so.2
 
-test-elf: subdirs backend/test/main.o
+fuck: back front
+	./tr examples/fucktorial test_tree
+	./cum test_tree asm
+	ld -o test asm asslib.o /lib64/libc.so.6 -I/lib64/ld-linux-x86-64.so.2
+
+test-elf: subdirs backend/legacy/test/main.o
 	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o test-elf lib/lib.o backend/backend.o \
-			      frontend/frontend.o ast/ast.o backend/test/main.o
+	$(CXX) $(CXXFLAGS) -o test-elf lib/lib.o backend/legacy/backend.o \
+			      frontend/frontend.o ast/ast.o backend/legacy/test/main.o
 	./test-elf
 
 front: subdirs frontend/main.o
@@ -102,10 +102,18 @@ front: subdirs frontend/main.o
 	$(CXX) $(CXXFLAGS) -o tr lib/lib.o \
 			      frontend/frontend.o ast/ast.o frontend/main.o
 
-back: subdirs backend/main.o
+back: subdirs backend/legacy/main.o
 	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/backend.o \
-			      frontend/frontend.o ast/ast.o backend/main.o
+	$(CXX) $(CXXFLAGS) -o cum lib/lib.o backend/legacy/backend.o \
+			      frontend/frontend.o ast/ast.o backend/legacy/main.o
+
+back-llvm: CXXFLAGS+=$(shell llvm-config --cppflags)
+back-llvm: LDFLAGS+=$(shell llvm-config --ldflags)
+back-llvm: LIBS+=$(shell llvm-config --libs)
+back-llvm: subdirs backend/llvm/main.o
+	$(OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBS) -o cum-llvm lib/lib.o backend/llvm/backend.o \
+			      frontend/frontend.o ast/ast.o backend/llvm/main.o
 
 trans: subdirs trans/main.o
 	$(OBJS)

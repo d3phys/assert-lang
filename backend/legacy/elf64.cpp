@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <iommap.h>
-#include <backend/elf64.h>
-#include <backend/backend.h>
+#include <backend/legacy/elf64.h>
+#include <backend/legacy/backend.h>
 
 static Elf64_Ehdr *elf64_create_ehdr();
 

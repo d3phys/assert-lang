@@ -10,8 +10,8 @@
 #include <stack.h>
 #include <ast/tree.h>
 #include <ast/keyword.h>
-#include <backend/backend.h>
-#include <backend/elf64.h>
+#include <backend/legacy/backend.h>
+#include <backend/legacy/elf64.h>
 
 static int input_error();
 static int file_error(const char *file_name);

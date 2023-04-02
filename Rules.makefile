@@ -35,5 +35,5 @@ rmdep:
 # Common rules
 #
 %.o : %.cpp
-	$(CXX) $(CXXFLAGS) -c -I$(HPATH) -I$(ASSEMBLY_PATH) $< -o $@
+	$(CXX) $(CXXFLAGS) -c $(LIBS) -I$(HPATH) -I$(ASSEMBLY_PATH) $< -o $@
 

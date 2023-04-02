@@ -97,7 +97,7 @@ ast_node *set_ast_keyword(ast_node *n, int keyword)
         return n;
 }
 
-num_t ast_number(ast_node *n)
+num_t ast_number(const ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_NUMBER);
@@ -108,7 +108,7 @@ num_t ast_number(ast_node *n)
         return 0;
 }
 
-const char *ast_ident(ast_node *n)
+const char *ast_ident(const ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_IDENT);
@@ -119,7 +119,7 @@ const char *ast_ident(ast_node *n)
         return nullptr;
 }
 
-int ast_keyword(ast_node *n)
+int ast_keyword( const ast_node *n)
 {
         assert(n);
         assert(n->type == AST_NODE_KEYWORD);

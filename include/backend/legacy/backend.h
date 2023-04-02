@@ -4,8 +4,8 @@
 #include <elf.h>
 #include <stack.h>
 #include <ast/tree.h>
-#include <backend/iencode.h>
-#include <backend/elf64.h>
+#include <backend/legacy/iencode.h>
+#include <backend/legacy/elf64.h>
 
 enum ac_symbol_type {
         AC_SYM_UND     = 0,

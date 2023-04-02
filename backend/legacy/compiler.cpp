@@ -12,8 +12,8 @@
 #include <ast/tree.h>
 #include <ast/keyword.h>
 
-#include <backend/backend.h>
-#include <backend/elf64.h>
+#include <backend/legacy/backend.h>
+#include <backend/legacy/elf64.h>
 
 static int       keyword(ast_node *node);
 static double    *number(ast_node *node);
