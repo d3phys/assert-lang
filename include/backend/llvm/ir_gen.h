@@ -2,8 +2,10 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include <memory>
+#include <iostream>
 #include <map>
 #include <vector>
+#include "logs.h"
 #include "ast/tree.h"
 
 /**
@@ -14,10 +16,10 @@
 class IRGenerator
 {
 public:
-    IRGenerator()
+    IRGenerator( std::string name)
         : context_{}
         , builder_{ std::make_unique<llvm::IRBuilder<>>( context_)}
-        , module_{}
+        , module_{ std::make_unique<llvm::Module>( name, context_)}
     {}
 
 public:
@@ -34,7 +36,7 @@ private:
     llvm::Value* compile_stmt   ( const ast_node* node);
     llvm::Value* compile_if     ( const ast_node* node);
 
-    llvm::Value* find_symbol  ( const char* name);
+    void declare_functions( const ast_node* node);
 
     struct Declaration
     {
@@ -49,35 +51,48 @@ private:
     std::unique_ptr<llvm::IRBuilder<>> builder_;
     std::unique_ptr<llvm::Module> module_;
 
-    using Scope = std::map<std::string, llvm::Value*>;
+    llvm::Value* get_element_ptr( const std::string& ident,
+                                  size_t shift = 0)
+    {
+        return get_element_ptr( std::move( ident),
+                                llvm::ConstantInt::get( llvm::Type::getInt64Ty( context_), shift));
+    }
+
+    llvm::Value* get_element_ptr( const std::string& ident,
+                                  llvm::Value* shift)
+    {
+$$
+        std::fprintf( logs, "Try to find: %s\n", ident.c_str());
+        Allocation alloc = scopes_.get( ident);
+
+        llvm::Value *idxs[] = {
+            llvm::ConstantInt::get( llvm::Type::getInt64Ty( context_), 0),
+            shift
+        };
+        return builder_->CreateGEP( alloc.type, alloc.value, idxs);
+    }
+
+    struct Allocation
+    {
+        llvm::Value* value;
+        llvm::Type* type;
+    };
+
+    using Scope = std::map<std::string, Allocation>;
 
     class SymbolTable
         : public std::vector<Scope>
     {
     public:
-        llvm::Value* get( const std::string& ident) const
+        Allocation get( const std::string& ident) const
         {
-            llvm::Value* value = find( std::move( ident));
-            if ( !value )
+            Allocation value = find( std::move( ident));
+            if ( !value.value )
             {
-                throw std::out_of_range{ "find variable symbol failed"};
+                throw std::out_of_range{ "find variable symbol not found!"};
             }
 
             return value;
-        }
-
-        llvm::Value* find( const std::string& ident) const
-        {
-            for ( auto&& symtab : *this )
-            {
-                auto symbol = symtab.find( ident);
-                if ( symbol != symtab.end() )
-                {
-                    return symbol->second;
-                }
-            }
-
-            return nullptr;
         }
 
         Scope& emplace_back()
@@ -87,7 +102,22 @@ private:
         }
 
         bool is_global() const { return !!(size() == 1); }
+
+        Allocation find( const std::string& ident) const
+        {
+            for ( const Scope& symtab : *this )
+            {
+                auto symbol = symtab.find( ident);
+                if ( symbol != symtab.end() )
+                {
+                    return symbol->second;
+                }
+            }
+
+            return Allocation{};
+        }
     };
+
 
     SymbolTable scopes_;
 };

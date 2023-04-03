@@ -81,6 +81,10 @@ make: dep front back trans back-llvm
 commit: clean rmdep
 	@echo "Ready for commit"
 
+test: front back-llvm
+	./tr examples/fucktorial2 fuck.tree
+	./cum-llvm fuck.tree fuck.ir
+
 quadr: back front
 	./tr examples/quadratic-integer test_tree
 	./cum test_tree asm

@@ -37,7 +37,7 @@ static void unindent()
 #define require_number(node)  if (!node || !number(node))       { return trans_error(root); }
 
 static int       keyword(ast_node *root);
-static double    *number(ast_node *root);
+static num_t     *number(ast_node *root);
 static const char *ident(ast_node *root);
 
 static ast_node *trans_define(FILE *file, ast_node *root);
@@ -501,7 +501,7 @@ static int keyword(ast_node *root)
         return 0;
 }
 
-static double *number(ast_node *root)
+static num_t* number(ast_node *root)
 {
         assert(root);
 

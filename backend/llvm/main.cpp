@@ -28,7 +28,7 @@ main( int argc,
 
         dump_tree( ast_tree.root());
 
-        IRGenerator irgen{};
+        IRGenerator irgen{ out_file};
         irgen.compile( ast_tree.root());
 
         std::fstream out{ out_file, out.trunc | out.out};

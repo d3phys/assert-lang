@@ -7,9 +7,13 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include <memory>
+#include <iostream>
+#include "logs.h"
 #include "ast/tree.h"
 #include "ast/keyword.h"
 #include "backend/llvm/ir_gen.h"
+
+static const char* kGlobalsInitIdent = "__ass_globals_init";
 
 static int
 keyword( const ast_node *node)
@@ -49,14 +53,100 @@ ident( const ast_node *node)
 llvm::Module*
 IRGenerator::compile( const ast_node* root)
 {
+    // Generate globals initializer
+    llvm::FunctionType *type = llvm::FunctionType::get( llvm::Type::getVoidTy( context_), false);
+    //llvm::Function::Create( type, llvm::Function::InternalLinkage, kGlobalsInitIdent, *module_);
+    llvm::FunctionCallee init_globals = module_->getOrInsertFunction( kGlobalsInitIdent, type);
+
+    declare_functions( root);
+
+    {
+        std::string entry = "main";
+        llvm::Function *function = module_->getFunction( entry);
+        assert( function);
+
+        llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, "__call_globals_init", function);
+        builder_->SetInsertPoint( bb);
+        builder_->CreateCall( init_globals);
+    }
+
+    Scope& global_scope = scopes_.emplace_back();
+    compile_stmt( root);
+    scopes_.pop_back();
+
+    {
+        llvm::Function *function = module_->getFunction( kGlobalsInitIdent);
+        llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, "__final", function);
+        builder_->SetInsertPoint( bb);
+        builder_->CreateRetVoid();
+    }
+
+    std::cout << "#[LLVM IR]:\n";
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    module_->print(os, nullptr);
+    os.flush();
+    std::cout << s;
     return nullptr;
+}
+
+void
+IRGenerator::declare_functions( const ast_node* root)
+{
+    assert( root );
+
+    if ( root->left )
+    {
+        declare_functions( root->left);
+    }
+
+    if ( keyword( root->right) != AST_DEFINE )
+    {
+        return;
+    }
+
+    ast_node *define_node = root->right;
+    assert( keyword( define_node) == AST_DEFINE );
+
+    ast_node *func_node = define_node->left;
+    assert( keyword( func_node) == AST_FUNC );
+
+    ast_node *name_node = func_node->left;
+    assert( name_node );
+
+    std::string name = ident( name_node);
+
+    //
+    // AST standard disables double definition.
+    //
+    for ( llvm::Function& func : module_->getFunctionList() )
+    {
+        if ( func.getName() == name )
+        {
+            throw std::runtime_error{ "double function definition"};
+        }
+    }
+
+    std::vector<llvm::Type*> arg_types{};
+    for ( ast_node* param = func_node->right;
+          param != nullptr;
+          param = param->left )
+    {
+        arg_types.push_back( llvm::Type::getInt64Ty( context_));
+    }
+
+    // According to the AST standard each function must return integer.
+    llvm::FunctionType *type = llvm::FunctionType::get( llvm::Type::getInt64Ty( context_),
+                                                        std::move( arg_types), false);
+    module_->getOrInsertFunction( name, type);
+    //llvm::Function::Create( type, llvm::Function::ExternalLinkage, name, *module_);
 }
 
 llvm::Value*
 IRGenerator::compile_stmt( const ast_node* root)
 {
     assert( root);
-
+$$
     if ( root->left )
     {
         compile_stmt( root->left);
@@ -67,18 +157,19 @@ IRGenerator::compile_stmt( const ast_node* root)
             return syntax_error(root);
 
             */
+$$
     ast_node *stmt = root->right;
     switch ( ast_keyword( stmt) ) {
     case AST_ASSIGN:
-            return compile_assign( stmt);
+        return compile_assign( stmt);
     case AST_DEFINE:
-            return compile_define( stmt);
+        return compile_define( stmt);
     case AST_IF:
-            return compile_if( root->right);
+        return compile_if( root->right);
     case AST_WHILE:
-            return compile_while( root->right);
+        return compile_while( root->right);
     case AST_CALL:
-            return compile_call( root->right);
+        return compile_call( root->right);
     case AST_OUT:
             /*
 $$              error = compile_expr(stmt->right, symtabs, vm);
@@ -92,10 +183,15 @@ $$              error = compile_expr(stmt->right, symtabs, vm);
             //register_pop(vm);
             //return success(root);
     case AST_RETURN:
-            return compile_return( stmt);
+    {
+        assert( stmt->right);
+        llvm::Value* return_value = compile_expr( stmt->right);
+        builder_->CreateRet( return_value);
+        return nullptr;
+    }
     default:
             //return syntax_error(root);
-            return nullptr;
+        return nullptr;
     }
 }
 
@@ -130,10 +226,10 @@ IRGenerator::compile_call( const ast_node* root)
           param != nullptr;
           param = param->left )
     {
-        args.push_back( compile_expr( param));
+        args.push_back( compile_expr( param->right));
     }
 
-    return builder_->CreateCall( function, args, "calltmp");
+    return builder_->CreateCall( function, args);
 }
 
 llvm::Value*
@@ -152,7 +248,7 @@ IRGenerator::compile_define( const ast_node* root)
     assert( function && "It is an assert! All functions must be declared!");
 
     // Create a new basic block to start insertion into.
-    llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, "entry", function);
+    llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, "__entry", function);
     builder_->SetInsertPoint( bb);
 
     Scope& scope = scopes_.emplace_back();
@@ -161,15 +257,18 @@ IRGenerator::compile_define( const ast_node* root)
           param != nullptr;
           param = param->left )
     {
-        for ( auto& arg : function->args() )
+        llvm::ArrayType *type = llvm::ArrayType::get( llvm::Type::getInt64Ty( context_), 1);
+        for ( llvm::Argument& arg : function->args() )
         {
-            scope.emplace( arg.getName(), &arg);
+            // Make function arguments mutable
+            llvm::AllocaInst* local = builder_->CreateAlloca( type);
+            builder_->CreateStore( &arg, local);
+            scope.emplace( ident( param->right), Allocation{ local, type});
         }
     }
 
     // Compile body
     compile_stmt( root->right);
-
     scopes_.pop_back();
     return nullptr;
 }
@@ -178,7 +277,7 @@ llvm::Value*
 IRGenerator::compile_assign( const ast_node* root)
 {
     assert( root);
-
+$$
     if ( keyword( root) != AST_ASSIGN)
     {
         throw std::runtime_error{ "AST_ASSIGN node type is required"};
@@ -186,134 +285,64 @@ IRGenerator::compile_assign( const ast_node* root)
 
     const std::string name = ident( root->left);
 
-    if ( scopes_.is_global() )
-    {
-            throw std::runtime_error{ "can't reassign global variables"};
-    }
-
-    // Declare global variable
     ast_node *shift_node = root->left->right;
-    size_t shift = shift_node ? (unumber( shift_node) + 1u)
-                              : (1u);
+    size_t shift = shift_node ? unumber( shift_node)
+                              : 0;
 
-    llvm::ArrayType *type = llvm::ArrayType::get( llvm::Type::getInt64Ty( context_), shift);
-    if ( !scopes_.find( name) )
+    //
+    // Specific AST standard requirements about variables size:
+    // See https://github.com/futherus/language/blob/master/tree_standard.md
+    //
+    size_t alloca_size = shift + 1;
+    llvm::ArrayType *type = llvm::ArrayType::get( llvm::Type::getInt64Ty( context_), alloca_size);
+
+    if ( !scopes_.find( name).value )
     {
+        llvm::Value* just_allocated_value{};
         if ( scopes_.is_global() )
         {
+            // @var = external global [1 x i64]
             module_->getOrInsertGlobal( name, type);
-            llvm::GlobalVariable *global = module_->getNamedGlobal( name);
+            just_allocated_value = module_->getNamedGlobal( name);
 
-            llvm::Function *function = module_->getFunction( "__ass_init_globals");
+            //
+            // All globals initialization code is placed inside "__ass_init_globals" function.
+            // That is why we need to change builder insert point.
+            //
+            llvm::Function *function = module_->getFunction( kGlobalsInitIdent);
             assert( function);
 
             llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, name, function);
             builder_->SetInsertPoint( bb);
-
-            // Compile initialization code
-            llvm::Value* init_value = compile_expr( root->right);
-            llvm::Value *global_ptr = builder_->CreateConstGEP2_64( type, global, 0, shift);
-            builder_->CreateStore( init_value, global_ptr);
-            return nullptr;
-
         } else
         {
+            // %var = alloca [(shift + 1) x i64], align 8
+            just_allocated_value = builder_->CreateAlloca( type);
         }
-    }
-    }
 
-    if ( scopes_.is_global() )
+        assert( just_allocated_value);
+
+        // Add just allocated variable to the current scope
+        Scope& scope = scopes_.back();
+        scope[name] = Allocation{ just_allocated_value, type};
+
+    } else
     {
+        // See AST standard...
+        if ( scopes_.is_global() )
         {
-            throw std::runtime_error{ "can't reassign global variables"};
+            throw std::runtime_error{ "can't reassign global variables at global scope!"};
         }
-
-        // Declare global variable
-        ast_node *shift_size = root->left->right;
-        module_->getOrInsertGlobal( name,
-                                    llvm::ArrayType::get( llvm::Type::getInt64Ty( context_),
-                                    sizeof( int64_t) * (unumber( shift_size) + 1)));
-
-        llvm::GlobalVariable *global = module_->getNamedGlobal( name);
-
-        llvm::Function *function = module_->getFunction( "__ass_init_globals");
-        assert( function);
-
-        llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, name, function);
-        builder_->SetInsertPoint( bb);
-
-        // Compile initialization code
-        llvm::Value* init_value = compile_expr( root->right);
-        builder_->CreateStore( init_value, global);
-        return nullptr;
     }
 
+$$
     llvm::Value* rhs = compile_expr( root->right);
-    Scope& scope = scopes_.back();
-    scope[name] = rhs;
+    llvm::Value* variable_ptr = get_element_ptr( name, shift);
+    builder_->CreateStore( rhs, variable_ptr);
+
     return nullptr;
 }
 
-static ast_node *compile_assign(ast_node *root, stack *symtabs, ac_virtual_memory *vm)
-{
-        assert(vm);
-        assert(root);
-        assert(symtabs);
-        ast_node *error = nullptr;
-$$
-        require(root, AST_ASSIGN);
-$$
-        require_ident(root->left);
-        ac_symbol sym = {
-                .type   = AC_SYM_VAR,
-                .vis    = AC_VIS_LOCAL,
-                .ident  = ast_ident(root->left),
-                .node   = root,
-                .addend = 0,
-                .offset = rip(vm),
-                .info   = 8,
-        };
-
-        error = compile_expr(root->right, symtabs, vm);
-        if (error)
-                return error;
-$$
-        ac_symbol *exist = find_symbol(symtabs, ast_ident(root->left));
-        if (exist) {
-                /* Can't reassign variables at global scope */
-                if (is_global_scope(symtabs))
-                        return syntax_error(root);
-
-                return compile_store(root->left, symtabs, vm, exist);
-        }
-$$
-        ast_node *size = root->left->right;
-        if (size) {
-                require_number(size);
-                sym.info = 8 * (ast_number(size) + 1);
-        }
-$$
-        elf64_section *sec = nullptr;
-        if (is_global_scope(symtabs)) {
-                sym.vis    = AC_VIS_GLOBAL;
-                sec = vm->secs + SEC_BSS;
-                sym.addend = (imm32)sec->size;
-        } else {
-                sym.vis    = AC_VIS_LOCAL;
-                sec = vm->secs + SEC_NULL;
-                sym.addend = - (imm32)((imm32)sec->size + sym.info);
-        }
-
-        sec->size += (size_t)sym.info;
-$$
-        array_push((array *)top_stack(symtabs), &sym, sizeof(ac_symbol));
-$       (dump_symtab(symtabs);)
-$$
-        return compile_store(root->left, symtabs, vm, &sym);
-}
-
-    llvm::Value ret_value = compile_stmt();
-    builder_->CreateRet( ret_value);
 llvm::Value*
 IRGenerator::compile_expr( const ast_node* root)
 {
@@ -326,8 +355,11 @@ IRGenerator::compile_expr( const ast_node* root)
 
     if ( root->type == AST_NODE_IDENT)
     {
-        llvm::Value* variable = scopes_.get( ident( root));
-        return builder_->CreateLoad( llvm::Type::getInt64Ty( context_), variable, ident( root));
+        llvm::Value* index = root->right ? compile_expr( root->right)
+                                         : llvm::ConstantInt::get( llvm::Type::getInt64Ty( context_), 0);
+
+        llvm::Value* variable = get_element_ptr( ident( root), index);
+        return builder_->CreateLoad( llvm::Type::getInt64Ty( context_), variable);
     }
 
     if ( ast_keyword( root) == AST_CALL )
@@ -335,83 +367,48 @@ IRGenerator::compile_expr( const ast_node* root)
         return compile_call( root);
     }
 
+    dump_tree((ast_node*)root);
+    assert( root->left);
+    assert( root->right);
     llvm::Value* lhs = compile_expr( root->left);
     llvm::Value* rhs = compile_expr( root->right);
 
     switch ( ast_keyword( root) ) {
     case AST_ADD:
-        return builder_->CreateAdd( lhs, rhs, "addtmp");
+        return builder_->CreateAdd( lhs, rhs);
     case AST_SUB:
-        return builder_->CreateSub( lhs, rhs, "subtmp");
+        return builder_->CreateSub( lhs, rhs);
     case AST_MUL:
-        return builder_->CreateMul( lhs, rhs, "multmp");
+        return builder_->CreateMul( lhs, rhs);
     case AST_DIV:
-        return builder_->CreateSDiv( lhs, rhs, "sdivtmp");
+        return builder_->CreateSDiv( lhs, rhs);
     case AST_NOT:
     case AST_AND:
     case AST_OR:
-        return builder_->CreateAdd( lhs, rhs, "addtmp");
+        return builder_->CreateAdd( lhs, rhs);
     case AST_EQUAL:
     case AST_NEQUAL:
     case AST_GREAT:
     case AST_LOW:
     case AST_GEQUAL:
     case AST_LEQUAL:
-        return builder_->CreateAdd( lhs, rhs, "addtmp");
+        return builder_->CreateAdd( lhs, rhs);
     default:
         return nullptr;
     }
 }
 
-/**
- * About
- *
- *
-class IRGenerator
-{
-public:
-    IRGenerator()
-        : context_{}
-        , builder_{ std::make_unique<llvm::IRBuilder<>>( context_)}
-        , module_{}
-    {}
-
-public:
-    llvm::Module* compile( const ast_node* root);
-
-private:
-    llvm::Value* compile_stdcall( const ast_node* node);
-    llvm::Value* compile_define ( const ast_node* node);
-    llvm::Value* compile_return ( const ast_node* node);
-    llvm::Value* compile_assign ( const ast_node* node);
-    llvm::Value* compile_expr   ( const ast_node* node);
-    llvm::Value* compile_while  ( const ast_node* node);
-    llvm::Value* compile_call   ( const ast_node* node);
-    llvm::Value* compile_stmt   ( const ast_node* node);
-    llvm::Value* compile_if     ( const ast_node* node);
-
-private:
-    llvm::LLVMContext context_;
-    std::unique_ptr<llvm::IRBuilder<>> builder_;
-    std::unique_ptr<llvm::Module> module_;
-};
- */
-
-/*
 llvm::Value*
-IRGenerator::find_symbol  ( const char* name)
-{
-    for ( auto&& symtab : symtabs_ )
-    {
-        auto symbol = symtab.find( name);
-        if ( symbol != symtab.end() )
-        {
-            return symbol->second;
-        }
-    }
+IRGenerator::compile_if( const ast_node* root)
+{ assert( 0 );}
 
-    throw std::out_of_range{ "find variable symbol failed"};
-}
-*/
+llvm::Value*
+IRGenerator::compile_while( const ast_node* root)
+{ assert( 0 );}
+
+llvm::Value*
+IRGenerator::compile_return( const ast_node* root)
+{ assert( 0 );}
+
 
 
