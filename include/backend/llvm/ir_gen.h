@@ -32,11 +32,15 @@ private:
     llvm::Value* compile_assign ( const ast_node* node);
     llvm::Value* compile_expr   ( const ast_node* node);
     llvm::Value* compile_while  ( const ast_node* node);
-    llvm::Value* compile_call   ( const ast_node* node);
     llvm::Value* compile_stmt   ( const ast_node* node);
     llvm::Value* compile_if     ( const ast_node* node);
+    llvm::Value* compile_cond   ( const ast_node* node);
+    llvm::Value* compile_call   ( const ast_node* node);
+    llvm::Value* compile_call   ( llvm::Function* func, const ast_node* params);
+
 
     void declare_functions( const ast_node* node);
+    void declare_stdlib();
 
     struct Declaration
     {
@@ -69,6 +73,8 @@ $$
             llvm::ConstantInt::get( llvm::Type::getInt64Ty( context_), 0),
             shift
         };
+
+        std::fprintf( logs, "Found: %s\n", ident.c_str());
         return builder_->CreateGEP( alloc.type, alloc.value, idxs);
     }
 

@@ -4,7 +4,7 @@
 # 2021, d3phys
 #
 
-OBJS = ir_gen.o
+OBJS = ir_gen.o asslib_support.o
 
 LLVMCONFIG="llvm-config"
 LLVM_CXXFLAGS="${$LLVMCONFIG --cppflags}"

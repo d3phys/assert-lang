@@ -83,7 +83,10 @@ commit: clean rmdep
 
 test: front back-llvm
 	./tr examples/fucktorial2 fuck.tree
-	./cum-llvm fuck.tree fuck.ir
+	./cum-llvm fuck.tree fuck.ir > test.ir
+	cat test.ir
+	llc test.ir -filetype=obj -o test.o
+	gcc test.o
 
 quadr: back front
 	./tr examples/quadratic-integer test_tree

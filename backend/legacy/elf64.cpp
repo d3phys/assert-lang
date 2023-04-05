@@ -301,7 +301,7 @@ Elf64_Sym *elf64_create_symtab(elf64_symbol *syms, elf64_section *secs)
         };
 
 
-#define ASS_STDLIB(ID, NAME, ARGS)                                      \
+#define ASS_STDLIB(AST_ID, ID, NAME, ARGS)                              \
         symtab[SYM_##ID] = {                                            \
                 .st_name  = (Elf64_Word)(syms[SYM_##ID].name - strtab), \
                 .st_info  = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE),      \
@@ -335,7 +335,7 @@ elf64_symbol *fill_symbols_info(elf64_section *secs, elf64_symbol *syms, const c
         syms[SYM_NULL].name = section_memcpy(strtab, "", sizeof(""));        
         syms[SYM_FILE].name = section_memcpy(strtab, file_name, strlen(file_name) + 1);
 
-#define ASS_STDLIB(ID, NAME, ARGS)                                        \
+#define ASS_STDLIB(AST_ID, ID, NAME, ARGS)                                \
         syms[SYM_##ID].name = section_memcpy(strtab, NAME, sizeof(NAME)); \
         syms[SYM_##ID].info = ARGS;
 #include "../STDLIB"

@@ -40,7 +40,7 @@ enum elf64_symbols_enum {
         SYM_DATA   = 4,       
         SYM_BSS    = 5,   
             
-#define ASS_STDLIB(ID, NAME, ARGS)     \
+#define ASS_STDLIB(AST_ID, ID, NAME, ARGS) \
         SYM_##ID,
 #include "../STDLIB"
 #undef ASS_STDLIB
