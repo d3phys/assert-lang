@@ -7,6 +7,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Casting.h"
 #include <memory>
 #include <iostream>
 #include "logs.h"
@@ -45,6 +46,20 @@ unumber( const ast_node *node)
     return static_cast<uint64_t>( number( node));
 }
 
+static bool
+IsInstTerminator( llvm::Value* value)
+{
+    if ( value != nullptr )
+    {
+        if ( auto inst = llvm::dyn_cast<llvm::Instruction>( value) )
+        {
+            return inst->isTerminator();
+        }
+    }
+
+    return false;
+}
+
 static const char*
 ident( const ast_node *node)
 {
@@ -52,12 +67,19 @@ ident( const ast_node *node)
     return ast_ident( node);
 }
 
-llvm::Module*
-IRGenerator::compile( const ast_node* root)
+void
+IRGenerator::compile( const ast_node* root,
+                      llvm::raw_fd_ostream& os)
 {
     // Generate globals initializer
     llvm::FunctionType *type = llvm::FunctionType::get( llvm::Type::getVoidTy( context_), false);
     llvm::FunctionCallee init_globals = module_->getOrInsertFunction( kGlobalsInitIdent, type);
+    llvm::Function *globals_init = module_->getFunction( kGlobalsInitIdent);
+
+    assert( globals_init );
+
+    llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, ".entry", globals_init);
+    builder_->SetInsertPoint( bb);
 
     declare_stdlib();
     declare_functions( root);
@@ -65,33 +87,31 @@ IRGenerator::compile( const ast_node* root)
     // Insert global scope
     scopes_.emplace_back();
     compile_stmt( root);
-    scopes_.pop_back();
 
-    assert( scopes_.size() == 0 );
-
+    // Compile globals initialization code
+    if ( scopes_.front().size() > 0 )
     {
         std::string entry = "main";
         llvm::Function *main = module_->getFunction( entry);
         assert( main);
 
         llvm::BasicBlock* entry_bb = &main->getEntryBlock();
-        llvm::BasicBlock* prepare_bb = llvm::BasicBlock::Create( context_, "__prepare", main, entry_bb);
+        llvm::BasicBlock* prepare_bb = llvm::BasicBlock::Create( context_, ".prepare", main, entry_bb);
 
         builder_->SetInsertPoint( prepare_bb);
         builder_->CreateCall( init_globals);
         builder_->CreateBr( entry_bb);
 
-        llvm::Function *function = module_->getFunction( kGlobalsInitIdent);
-        builder_->SetInsertPoint( &function->back());
+        builder_->SetInsertPoint( &globals_init->back());
         builder_->CreateRetVoid();
     }
 
-    std::string s;
-    llvm::raw_string_ostream os(s);
+    scopes_.pop_back();
+
+    assert( scopes_.size() == 0 );
+
     module_->print(os, nullptr);
     os.flush();
-    std::cout << s;
-    return nullptr;
 }
 
 void
@@ -143,17 +163,20 @@ IRGenerator::declare_functions( const ast_node* root)
     llvm::FunctionType *type = llvm::FunctionType::get( llvm::Type::getInt64Ty( context_),
                                                         std::move( arg_types), false);
     module_->getOrInsertFunction( name, type);
-    //llvm::Function::Create( type, llvm::Function::ExternalLinkage, name, *module_);
 }
 
 llvm::Value*
 IRGenerator::compile_stmt( const ast_node* root)
 {
-    assert( root);
+    assert( root );
 
     if ( root->left )
     {
-        compile_stmt( root->left);
+        llvm::Value* value = compile_stmt( root->left);
+        if ( IsInstTerminator( value) )
+        {
+            return value;
+        }
     }
 
     ast_node *stmt = root->right;
@@ -194,33 +217,6 @@ IRGenerator::compile_call( const ast_node* root)
     }
 
     return compile_call( function, root->right);
-
-#if 0
-    /* We need to check if function arguments number is correct */
-    size_t n_params = 0;
-    for ( ast_node* param = root->right;
-          param != nullptr;
-          param = param->left )
-    {
-        n_params++;
-    }
-
-    if ( n_params != function->arg_size() )
-    {
-        throw std::runtime_error{ "invalid arguments number"};
-    }
-
-    /* Calculate and push function parameters */
-    std::vector<llvm::Value*> args;
-    for ( ast_node* param = root->right;
-          param != nullptr;
-          param = param->left )
-    {
-        args.push_back( compile_expr( param->right));
-    }
-
-    return builder_->CreateCall( function, args);
-#endif
 }
 
 llvm::Value*
@@ -268,7 +264,7 @@ IRGenerator::compile_define( const ast_node* root)
     assert( function && "It is an assert! All functions must be declared!");
 
     // Create a new basic block to start insertion into.
-    llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, "__entry", function);
+    llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, ".entry", function);
     builder_->SetInsertPoint( bb);
 
     Scope& scope = scopes_.emplace_back();
@@ -331,10 +327,9 @@ IRGenerator::compile_assign( const ast_node* root)
             // That is why we need to change builder insert point.
             //
             llvm::Function *function = module_->getFunction( kGlobalsInitIdent);
-            assert( function);
+            assert( function );
+            builder_->SetInsertPoint( &function->back());
 
-            llvm::BasicBlock *bb = llvm::BasicBlock::Create( context_, name, function);
-            builder_->SetInsertPoint( bb);
         } else
         {
             // %var = alloca [(shift + 1) x i64], align 8
@@ -358,7 +353,7 @@ IRGenerator::compile_assign( const ast_node* root)
 
     llvm::Value* rhs = compile_expr( root->right);
     llvm::Value* variable_ptr = get_element_ptr( name, shift);
-    
+
     assert( rhs && variable_ptr );
     builder_->CreateStore( rhs, variable_ptr);
 
@@ -391,7 +386,6 @@ IRGenerator::compile_expr( const ast_node* root)
 
     if ( ast_keyword( root) == AST_IN )
     {
-        dump_tree( (ast_node*)root);
         llvm::Function *function = module_->getFunction( get_asslib_ident( AsslibID::ASSLIB_SCAN));
 
         assert( function );
@@ -450,7 +444,7 @@ IRGenerator::compile_cond( const ast_node* root)
     llvm::Type* cond_type = cond->getType();
     if ( cond_type->isIntegerTy() && cond_type->getIntegerBitWidth() != 1 )
     {
-        cond = builder_->CreateICmpEQ( cond, llvm::ConstantInt::get( cond_type, 0));
+        cond = builder_->CreateICmpNE( cond, llvm::ConstantInt::get( cond_type, 0));
     }
 
     return cond;
@@ -469,30 +463,37 @@ IRGenerator::compile_if( const ast_node* root)
 
     llvm::Function* function = builder_->GetInsertBlock()->getParent();
 
-    llvm::BasicBlock *then_bb = llvm::BasicBlock::Create( context_, "__if.then", function);
-    llvm::BasicBlock *else_bb = llvm::BasicBlock::Create( context_, "__if.else", function);
-    llvm::BasicBlock *exit_bb = llvm::BasicBlock::Create( context_, "__if.exit", function);
+    llvm::BasicBlock *then_bb = llvm::BasicBlock::Create( context_, ".if", function);
+    llvm::BasicBlock *else_bb = llvm::BasicBlock::Create( context_, ".if", function);
+    llvm::BasicBlock *exit_bb = llvm::BasicBlock::Create( context_, ".if", function);
 
     builder_->CreateCondBr( cond, then_bb, else_bb);
 
-    if ( decision->right )
+    auto compile_body = [&]( const ast_node* node, llvm::BasicBlock* ip)
     {
-        scopes_.emplace_back();
-        builder_->SetInsertPoint( else_bb);
-        compile_stmt( decision->right);
-        scopes_.pop_back();
+        builder_->SetInsertPoint( ip);
 
-        builder_->CreateBr( exit_bb);
-    }
+        bool should_branch = true;
+        if ( node )
+        {
+            scopes_.emplace_back();
 
-    scopes_.emplace_back();
-    builder_->SetInsertPoint( then_bb);
-    compile_stmt( decision->left);
-    scopes_.pop_back();
+            llvm::Value* last = compile_stmt( node);
+            should_branch = !IsInstTerminator( last);
 
-    builder_->CreateBr( exit_bb );
+            scopes_.pop_back();
+        }
+
+        if ( should_branch )
+        {
+            builder_->CreateBr( exit_bb);
+        }
+    };
+
+    compile_body( decision->right, else_bb);
+    compile_body( decision->left, then_bb);
+
     builder_->SetInsertPoint( exit_bb);
-
     return nullptr;
 }
 
@@ -503,9 +504,9 @@ IRGenerator::compile_while( const ast_node* root)
 
     llvm::Function* function = builder_->GetInsertBlock()->getParent();
 
-    llvm::BasicBlock *cond_bb = llvm::BasicBlock::Create( context_, "__while.cond", function);
-    llvm::BasicBlock *body_bb = llvm::BasicBlock::Create( context_, "__while.body", function);
-    llvm::BasicBlock *exit_bb = llvm::BasicBlock::Create( context_, "__while.exit", function);
+    llvm::BasicBlock *cond_bb = llvm::BasicBlock::Create( context_, ".while", function);
+    llvm::BasicBlock *body_bb = llvm::BasicBlock::Create( context_, ".while", function);
+    llvm::BasicBlock *exit_bb = llvm::BasicBlock::Create( context_, ".while", function);
 
     assert( root->left && root->right );
 
@@ -517,8 +518,11 @@ IRGenerator::compile_while( const ast_node* root)
     builder_->CreateCondBr( cond, body_bb, exit_bb);
 
     builder_->SetInsertPoint( body_bb);
-    compile_stmt( root->right);
-    builder_->CreateBr( cond_bb);
+    llvm::Value* last = compile_stmt( root->right);
+    if ( !IsInstTerminator( last) )
+    {
+        builder_->CreateBr( cond_bb);
+    }
 
     builder_->SetInsertPoint( exit_bb);
     return nullptr;
@@ -529,8 +533,7 @@ IRGenerator::compile_return( const ast_node* root)
 {
     assert( root->right );
     llvm::Value* return_value = compile_expr( root->right);
-    builder_->CreateRet( return_value);
-    return nullptr;
+    return builder_->CreateRet( return_value);
 }
 
 void

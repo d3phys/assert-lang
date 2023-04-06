@@ -28,11 +28,11 @@ main( int argc,
 
         dump_tree( ast_tree.root());
 
-        IRGenerator irgen{ out_file};
-        irgen.compile( ast_tree.root());
+        std::error_code code;
+        llvm::raw_fd_ostream out{ out_file, code};
 
-        std::fstream out{ out_file, out.trunc | out.out};
-        out << "Hello world" << 2 << '\n' << std::endl;
+        IRGenerator irgen{ out_file};
+        irgen.compile( ast_tree.root(), out);
 
     } catch ( const std::exception& exception )
     {

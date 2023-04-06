@@ -74,6 +74,7 @@ ASSEMBLY_PATH = $(TOPDIR)/assembly/include
 
 make: dep front back trans back-llvm
 	nasm -f elf64 -o asslib.o asslib.s
+	gcc asslib-llvm.c -c asslib-llvm.o
 	@printf "\n\n\n\n\n\n"
 	@echo "Assert language is compiled now!"
 	@echo "Read: https://d3phys.github.io/assert-book/"
@@ -83,10 +84,10 @@ commit: clean rmdep
 
 test: front back-llvm
 	./tr examples/fucktorial2 fuck.tree
-	./cum-llvm fuck.tree fuck.ir > test.ir
-	cat test.ir
-	llc test.ir -filetype=obj -o test.o
-	gcc test.o
+	./cum-llvm fuck.tree fuck.ir
+	cat fuck.ir
+	llc fuck.ir -filetype=obj -o test.o
+	gcc test.o asslib-llvm.o
 
 quadr: back front
 	./tr examples/quadratic-integer test_tree

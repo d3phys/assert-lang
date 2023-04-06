@@ -23,7 +23,8 @@ public:
     {}
 
 public:
-    llvm::Module* compile( const ast_node* root);
+    //llvm::Module* compile( const ast_node* root);
+    void compile( const ast_node* root, llvm::raw_fd_ostream& os);
 
 private:
     llvm::Value* compile_stdcall( const ast_node* node);
