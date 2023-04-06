@@ -27,6 +27,8 @@ Here you can find an overview of the project structure.
 /* Directories */
 ├── ast         Abstract Syntax Tree module
 ├── backend     Compiler backend code
+│   ├── legacy  Legacy hand-written backend
+│   └── llvm    LLVM IR backend
 ├── frontend    Compiler frontend code
 ├── include     All include files
 ├── lib         Libraries and Components
@@ -35,9 +37,10 @@ Here you can find an overview of the project structure.
 └── trans       AST to Source code decompiler
 
 /* Files */
-├── AST         AST nodes format
-├── asslib.s    Assert Standard Library code
-├── grammar     Language EBNF grammar
-├── KEYWORDS    Lexer script
-├── STDLIB      Standard functions table
+├── AST            AST nodes format
+├── asslib.s       Assert Standard Library code for legacy backend
+├── asslib-llvm.c  Assert Standard Library code for LLVM backend
+├── grammar        Language EBNF grammar
+├── KEYWORDS       Lexer script
+├── STDLIB         Standard functions table
 ```

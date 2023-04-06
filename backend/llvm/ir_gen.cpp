@@ -102,9 +102,10 @@ IRGenerator::compile( const ast_node* root,
         builder_->CreateCall( init_globals);
         builder_->CreateBr( entry_bb);
 
-        builder_->SetInsertPoint( &globals_init->back());
-        builder_->CreateRetVoid();
     }
+
+    builder_->SetInsertPoint( &globals_init->back());
+    builder_->CreateRetVoid();
 
     scopes_.pop_back();
 
